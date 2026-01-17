@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chấm Công OT</title>
+    <meta name="description" content="Ứng dụng ghi nhận và tính giờ tăng ca tự động">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="header-content">
+                <div class="brand">
+                    <h1>OT Tracker</h1>
+                    <span class="author-tag">make by Mr.Lượng</span>
+                </div>
+                <div>
+                    <button id="login-btn" aria-label="Đăng nhập"><i class="fa-solid fa-user-lock"></i></button>
+                    <button id="settings-btn" aria-label="Cài đặt"><i class="fa-solid fa-gear"></i></button>
+                </div>
+            </div>
+            <div class="month-selector">
+                <button id="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
+                <span id="current-month-display">Tháng 1, 2026</span>
+                <button id="next-month"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Summary Card -->
+            <section class="summary-card">
+                <div class="summary-item">
+                    <span class="label">Tổng giờ OT</span>
+                    <span class="value" id="total-ot">0h</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">Phiếu ăn</span>
+                    <span class="value" id="total-meals">0</span>
+                </div>
+                <div class="summary-details">
+                    <div class="summary-detail-item">
+                        <span class="lbl">Chủ Nhật</span>
+                        <span class="val" id="total-ot-sunday" style="color: var(--accent-color)">0h</span>
+                    </div>
+                    <div class="summary-detail-item">
+                        <span class="lbl">
+                            <= 22h</span>
+                                <span class="val" id="total-ot-s1">0h</span>
+                    </div>
+                    <div class="summary-detail-item">
+                        <span class="lbl">22h-24h</span>
+                        <span class="val" id="total-ot-s2">0h</span>
+                    </div>
+                    <div class="summary-detail-item">
+                        <span class="lbl">> 24h</span>
+                        <span class="val" id="total-ot-s3">0h</span>
+                    </div>
+                </div>
+                <!-- Hidden/Less important stat moved or kept tiny if needed, but 3 cols might be tight. 
+                     Let's stick to 2 items prominently or change grid to 3 if space allows.
+                     Given mobile width '480px', 3 items is risky. Let's try 3 items with smaller font.
+                -->
+            </section>
+
+            <!-- Input Section -->
+            <section class="input-section glass-panel">
+                <div class="input-row-multi date-row">
+                    <div class="form-group">
+                        <label for="date-picker">Ngày làm việc</label>
+                        <input type="date" id="date-picker">
+                    </div>
+                    <div class="form-group">
+                        <label for="out-date">Ngày tan ca</label>
+                        <input type="date" id="out-date" class="full-width-input">
+                    </div>
+                </div>
+
+                <div class="input-row-multi">
+                    <div class="form-group">
+                        <label for="out-time">Giờ tan ca</label>
+                        <input type="time" id="out-time" class="full-width-input">
+                    </div>
+                    <div class="form-group checkbox-cell">
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="realtime-checkout">
+                            <span class="checkmark"></span>
+                            <span class="label-text">Chấm công ngay</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="gps-status" class="gps-status hidden" style="width: 66%; margin: 0 0 16px 0;">
+                    <i class="fa-solid fa-location-crosshairs"></i> <span id="gps-address"></span>
+                </div>
+
+                <div class="info-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Giờ tiêu chuẩn: <strong id="standard-time-display">17:00</strong></span>
+                        <span>Phiếu ăn: <strong id="meal-ticket-display"
+                                style="color: var(--accent-color)">0</strong></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Tổng OT: <strong id="calculated-ot" class="highlight-text">--</strong></span>
+                    </div>
+
+                    <div class="ot-breakdown">
+                        <div class="ot-segment">
+                            <label>17h - 22h</label>
+                            <span id="ot-seg-1">0h</span>
+                        </div>
+                        <div class="ot-segment">
+                            <label>22h - 24h</label>
+                            <span id="ot-seg-2">0h</span>
+                        </div>
+                        <div class="ot-segment">
+                            <label>Sau 24h</label>
+                            <span id="ot-seg-3">0h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="save-btn" class="primary-btn">Lưu chấm công</button>
+                </div>
+            </section>
+
+            <!-- Recent Logs -->
+            <section class="logs-section">
+                <h3>Lịch sử chấm công</h3>
+                <div id="logs-list" class="logs-list">
+                    <!-- Log items will be injected here -->
+                    <div class="empty-state">Chưa có dữ liệu tháng này</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content glass-panel">
+                <div class="modal-header">
+                    <h3>Cài đặt</h3>
+                    <button id="close-settings"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="setting-standard-time">Giờ tan ca tiêu chuẩn</label>
+                        <input type="time" id="setting-standard-time" value="17:30">
+                        <p class="hint">Giờ kết thúc làm việc chính thức để tính OT.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dữ liệu chấm công</label>
+                        <button id="export-btn" class="secondary-btn full-width"><i class="fa-solid fa-file-csv"></i>
+                            Xuất File CSV (Tháng này)</button>
+                    </div>
+
+                    <button id="save-settings-btn" class="primary-btn full-width">Lưu Cài Đặt</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div id="login-modal" class="modal hidden">
+            <div class="modal-content glass-panel">
+                <div class="modal-header">
+                    <h3>Đăng Nhập</h3>
+                    <button id="close-login"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="login-id">ID Đăng Nhập</label>
+                        <input type="text" id="login-id" class="full-width-input" value="Admin" placeholder="Nhập ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-pass">Mật Khẩu</label>
+                        <input type="password" id="login-pass" class="full-width-input" placeholder="Nhập mật khẩu">
+                    </div>
+                    <button id="login-submit-btn" class="primary-btn full-width">Đăng Nhập</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast hidden">Lưu thành công!</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
