@@ -39,10 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginSubmitBtn = document.getElementById('login-submit-btn');
     const loginIdInput = document.getElementById('login-id');
     const loginPassInput = document.getElementById('login-pass');
+    const langBtn = document.getElementById('lang-btn');
+    const langText = document.getElementById('lang-text');
+    const htmlLang = document.getElementById('html-lang');
 
     // State
     let selectedDate = new Date();
     let currentViewMonth = new Date();
+    let currentLang = localStorage.getItem('ot_lang') || 'vi';
     let logs = JSON.parse(localStorage.getItem('ot_logs')) || {};
     let settings = JSON.parse(localStorage.getItem('ot_settings')) || {
         standardTime: '17:30'
@@ -50,6 +54,95 @@ document.addEventListener('DOMContentLoaded', () => {
     let realtimeInterval = null;
     let cachedLocation = null;
     let isAdmin = false;
+
+    const translations = {
+        vi: {
+            total_ot: "Tổng giờ OT",
+            meal_tickets: "Phiếu ăn",
+            sunday: "Chủ Nhật",
+            work_day: "Ngày làm việc",
+            checkout_day: "Ngày tan ca",
+            checkout_time: "Giờ tan ca",
+            record_now: "Chấm công ngay",
+            std_time: "Giờ tiêu chuẩn",
+            after_24h: "Sau 24h",
+            save_record: "Lưu chấm công",
+            update_record: "Cập nhật",
+            record_history: "Lịch sử chấm công",
+            no_data: "Chưa có dữ liệu tháng này",
+            settings: "Cài đặt",
+            std_checkout_time: "Giờ tan ca tiêu chuẩn",
+            std_checkout_hint: "Giờ kết thúc làm việc chính thức để tính OT.",
+            attendance_data: "Dữ liệu chấm công",
+            export_csv: "Xuất File CSV (Tháng này)",
+            save_settings: "Lưu Cài Đặt",
+            login_id: "ID Đăng Nhập",
+            password: "Mật Khẩu",
+            login_btn: "Đăng Nhập",
+            logout_confirm: "Bạn có muốn đăng xuất?",
+            logged_out: "Đã đăng xuất",
+            login_success: "Đăng nhập quản trị thành công!",
+            login_error: "Sai ID hoặc Mật khẩu!",
+            delete_confirm: "Bạn có chắc muốn xóa dữ liệu ngày này? Hành động không thể hoàn tác.",
+            delete_success: "Đã xóa dữ liệu thành công",
+            gps_fetching: "Đang lấy vị trí...",
+            gps_error: "Không thể lấy vị trí",
+            save_success: "Đã lưu chấm công thành công!",
+            input_needed: "Vui lòng nhập đầy đủ ngày/giờ tan ca",
+            processing: "Đang xử lý...",
+            csv_downloaded: "Đã tải xuống file CSV!",
+            csv_no_data: "Không có dữ liệu tháng này để xuất!",
+            settings_saved: "Đã lưu cài đặt",
+            months: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"],
+            weekdays: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+            ve_luc: "Về lúc",
+            phieu_an: "phiếu ăn",
+            csv_headers: "Ngày,Giờ Tan Ca,Tổng OT,OT (<=22h),OT (22-24h),OT (>24h),OT CN,Phiếu Ăn,Địa Chỉ\n"
+        },
+        ko: {
+            total_ot: "총 OT 시간",
+            meal_tickets: "식권",
+            sunday: "일요일",
+            work_day: "근무일",
+            checkout_day: "퇴근일",
+            checkout_time: "퇴근 시간",
+            record_now: "지금 기록",
+            std_time: "표준 시간",
+            after_24h: "24시 이후",
+            save_record: "기록 저장",
+            update_record: "업데이트",
+            record_history: "출퇴근 이력",
+            no_data: "이번 달 데이터가 없습니다",
+            settings: "설정",
+            std_checkout_time: "표준 퇴근 시간",
+            std_checkout_hint: "OT 계산을 위한 공식 업무 종료 시간.",
+            attendance_data: "출퇴근 데이터",
+            export_csv: "CSV 파일 내보내기 (이번 달)",
+            save_settings: "설정 저장",
+            login_id: "로그인 ID",
+            password: "비밀번호",
+            login_btn: "로그인",
+            logout_confirm: "로그아웃 하시겠습니까?",
+            logged_out: "로그아웃 되었습니다",
+            login_success: "관리자 로그인 성공!",
+            login_error: "ID 또는 비밀번호가 틀렸습니다!",
+            delete_confirm: "이 날의 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+            delete_success: "데이터가 성공적으로 삭제되었습니다",
+            gps_fetching: "위치 정보를 가져오는 중...",
+            gps_error: "위치 정보를 가져올 수 없습니다",
+            save_success: "출퇴근 기록이 저장되었습니다!",
+            input_needed: "퇴근 날짜와 시간을 모두 입력해주세요",
+            processing: "처리 중...",
+            csv_downloaded: "CSV 파일이 다운로드되었습니다!",
+            csv_no_data: "내보낼 이번 달 데이터가 없습니다!",
+            settings_saved: "설정이 저장되었습니다",
+            months: ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+            weekdays: ["일", "월", "화", "수", "목", "금", "토"],
+            ve_luc: "퇴근",
+            phieu_an: "식권",
+            csv_headers: "날짜,퇴근 시간,총 OT,OT (<=22h),OT (22-24h),OT (>24h),일요일 OT,식권,주소\n"
+        }
+    };
 
     // Initialization
     init();
@@ -59,12 +152,35 @@ document.addEventListener('DOMContentLoaded', () => {
         datePicker.valueAsDate = selectedDate;
         outDateInput.valueAsDate = selectedDate; // Default out date to same day
 
+        updateUIText();
         updateMonthDisplay();
         renderSettings();
         renderLogs(); // Renders list for currentViewMonth
         loadLogForSelectedDate(); // Loads data into inputs if exists
 
         setupEventListeners();
+    }
+
+    function updateUIText() {
+        const lang = translations[currentLang];
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (lang[key]) {
+                el.textContent = lang[key];
+            }
+        });
+
+        langText.textContent = currentLang.toUpperCase();
+        htmlLang.setAttribute('lang', currentLang);
+    }
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'vi' ? 'ko' : 'vi';
+        localStorage.setItem('ot_lang', currentLang);
+        updateUIText();
+        updateMonthDisplay();
+        renderLogs();
+        loadLogForSelectedDate();
     }
 
     function setupEventListeners() {
@@ -126,17 +242,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loginBtn) loginBtn.addEventListener('click', () => {
             // If already logged in, maybe ask to logout?
             if (isAdmin) {
-                if (confirm('Bạn có muốn đăng xuất?')) {
+                if (confirm(translations[currentLang].logout_confirm)) {
                     isAdmin = false;
                     document.body.classList.remove('admin-logged-in');
                     loginBtn.innerHTML = '<i class="fa-solid fa-user-lock"></i>';
-                    showToast('Đã đăng xuất');
+                    showToast(translations[currentLang].logged_out);
                     renderLogs();
                 }
             } else {
                 openModal(loginModal);
             }
         });
+
+        // Lang Button
+        if (langBtn) langBtn.addEventListener('click', toggleLanguage);
         if (closeLoginBtn) closeLoginBtn.addEventListener('click', () => closeModal(loginModal));
         if (loginSubmitBtn) loginSubmitBtn.addEventListener('click', handleLogin);
         if (loginModal) loginModal.addEventListener('click', (e) => {
@@ -153,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('admin-logged-in');
             loginBtn.innerHTML = '<i class="fa-solid fa-user-check"></i>'; // Change icon
             closeModal(loginModal);
-            showToast('Đăng nhập quản trị thành công!');
+            showToast(translations[currentLang].login_success);
 
             // Clear inputs
             loginIdInput.value = '';
@@ -161,19 +280,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderLogs();
         } else {
-            showToast('Sai ID hoặc Mật khẩu!', 'error');
+            showToast(translations[currentLang].login_error, 'error');
         }
     }
 
     function deleteLog(dateKey) {
         if (!isAdmin) return;
-        if (confirm('Bạn có chắc muốn xóa dữ liệu ngày này? Hành động không thể hoàn tác.')) {
+        if (confirm(translations[currentLang].delete_confirm)) {
             // Remove from logs
             delete logs[dateKey];
             localStorage.setItem('ot_logs', JSON.stringify(logs));
 
             // Update UI
-            showToast('Đã xóa dữ liệu thành công');
+            showToast(translations[currentLang].delete_success);
 
             // If the deleted log was the currently rendered one (selectedDate), maybe reset/reload inputs?
             if (formatDateKey(selectedDate) === dateKey) {
@@ -192,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show GPS status
         gpsStatusDiv.classList.remove('hidden');
-        gpsAddressSpan.textContent = "Đang lấy vị trí...";
+        gpsAddressSpan.textContent = translations[currentLang].gps_fetching;
 
         // Update time immediately and start interval
         updateRealtimeInputs();
@@ -269,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error("GPS Error:", error);
-            gpsAddressSpan.textContent = "Không thể lấy vị trí";
+            gpsAddressSpan.textContent = translations[currentLang].gps_error;
             cachedLocation = null;
         }
     }
@@ -294,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 outDateInput.valueAsDate = selectedDate;
             }
             calculateOT(); // Update display
-            saveBtn.textContent = "Cập nhật";
+            saveBtn.textContent = translations[currentLang].update_record;
         } else {
             outTimeInput.value = '';
             outDateInput.valueAsDate = selectedDate; // Reset to match start date
@@ -306,13 +425,14 @@ document.addEventListener('DOMContentLoaded', () => {
             otSeg3Display.textContent = '0h';
             mealTicketDisplay.textContent = '0'; // Reset meals
 
-            saveBtn.textContent = "Lưu chấm công";
+            saveBtn.textContent = translations[currentLang].save_record;
         }
     }
 
     function updateMonthDisplay() {
-        const monthOptions = { month: 'long', year: 'numeric' };
-        currentMonthDisplay.textContent = currentViewMonth.toLocaleDateString('vi-VN', monthOptions);
+        const month = translations[currentLang].months[currentViewMonth.getMonth()];
+        const year = currentViewMonth.getFullYear();
+        currentMonthDisplay.textContent = currentLang === 'vi' ? `${month}, ${year}` : `${year}년 ${month}`;
     }
 
     function changeMonth(delta) {
@@ -470,12 +590,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const outDateVal = outDateInput.value;
 
         if (!outTime || !outDateVal) {
-            showToast('Vui lòng nhập đầy đủ ngày/giờ tan ca', 'error');
+            showToast(translations[currentLang].input_needed, 'error');
             return;
         }
 
         // Show loading state
-        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+        saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${translations[currentLang].processing}`;
         saveBtn.disabled = true;
 
         let locationData = cachedLocation; // Use cached if available
@@ -548,9 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
             stopRealtimeMode();
         }
 
-        saveBtn.innerHTML = "Cập nhật";
+        saveBtn.textContent = translations[currentLang].update_record;
         saveBtn.disabled = false;
-        showToast('Đã lưu chấm công thành công!');
+        showToast(translations[currentLang].save_success);
     }
 
     const getLocation = () => {
@@ -680,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         if (monthlyLogs.length === 0) {
-            logsList.innerHTML = '<div class="empty-state">Chưa có dữ liệu tháng này</div>';
+            logsList.innerHTML = `<div class="empty-state">${translations[currentLang].no_data}</div>`;
             return;
         }
 
@@ -698,8 +818,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
-            const weekday = date.toLocaleDateString('vi-VN', { weekday: 'short' });
-            const itemDateStr = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+            const weekdayIndex = date.getDay();
+            const weekday = translations[currentLang].weekdays[weekdayIndex];
+            const itemDateStr = date.toLocaleDateString(currentLang === 'vi' ? 'vi-VN' : 'ko-KR', { day: '2-digit', month: '2-digit' });
 
             let locationHtml = '';
             if (log.location) {
@@ -726,9 +847,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="log-details">
                     <span class="log-ot">+${log.otHours}h</span>
-                    ${log.otSunday ? '<span style="display:block;font-size:10px;color:var(--accent-color)">Chủ Nhật</span>' : ''}
-                    ${log.meals ? `<span style="display:block; font-size:11px; color:var(--text-secondary)">${log.meals} phiếu ăn</span>` : ''}
-                    <span class="log-time">Về lúc ${log.outTime}</span>
+                    ${log.otSunday ? `<span style="display:block;font-size:10px;color:var(--accent-color)">${translations[currentLang].sunday}</span>` : ''}
+                    ${log.meals ? `<span style="display:block; font-size:11px; color:var(--text-secondary)">${log.meals} ${translations[currentLang].phieu_an}</span>` : ''}
+                    <span class="log-time">${translations[currentLang].ve_luc} ${log.outTime}</span>
                     ${locationHtml}
                 </div>
                 ${isAdmin ? `<button class="delete-btn" title="Xóa"><i class="fa-solid fa-trash"></i></button>` : ''}
@@ -758,13 +879,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (monthlyLogs.length === 0) {
-            showToast('Không có dữ liệu tháng này để xuất!', 'error');
+            showToast(translations[currentLang].csv_no_data, 'error');
             return;
         }
 
         monthlyLogs.sort((a, b) => a.timestamp - b.timestamp);
 
-        let csvContent = "Ngày,Giờ Tan Ca,Tổng OT,OT (<=22h),OT (22-24h),OT (>24h),OT CN,Phiếu Ăn,Địa Chỉ\n";
+        let csvContent = translations[currentLang].csv_headers;
 
         monthlyLogs.forEach(log => {
             const date = new Date(log.timestamp);
@@ -800,7 +921,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
         document.body.removeChild(link);
 
-        showToast('Đã tải xuống file CSV!');
+        showToast(translations[currentLang].csv_downloaded);
     }
 
     function renderSettings() {
@@ -818,7 +939,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSettings();
         calculateOT(); // Recalculate
         closeModal(settingsModal);
-        showToast('Đã lưu cài đặt');
+        showToast(translations[currentLang].settings_saved);
     }
 
     function formatDateKey(date) {

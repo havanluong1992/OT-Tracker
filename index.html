@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" id="html-lang">
 
 <head>
     <meta charset="UTF-8">
@@ -26,6 +26,7 @@
                     <span class="author-tag">make by Mr.Lượng</span>
                 </div>
                 <div>
+                    <button id="lang-btn" aria-label="Chuyển đổi ngôn ngữ"><i class="fa-solid fa-globe"></i> <span id="lang-text">VN</span></button>
                     <button id="login-btn" aria-label="Đăng nhập"><i class="fa-solid fa-user-lock"></i></button>
                     <button id="settings-btn" aria-label="Cài đặt"><i class="fa-solid fa-gear"></i></button>
                 </div>
@@ -41,16 +42,16 @@
             <!-- Summary Card -->
             <section class="summary-card">
                 <div class="summary-item">
-                    <span class="label">Tổng giờ OT</span>
+                    <span class="label" data-i18n="total_ot">Tổng giờ OT</span>
                     <span class="value" id="total-ot">0h</span>
                 </div>
                 <div class="summary-item">
-                    <span class="label">Phiếu ăn</span>
+                    <span class="label" data-i18n="meal_tickets">Phiếu ăn</span>
                     <span class="value" id="total-meals">0</span>
                 </div>
                 <div class="summary-details">
                     <div class="summary-detail-item">
-                        <span class="lbl">Chủ Nhật</span>
+                        <span class="lbl" data-i18n="sunday">Chủ Nhật</span>
                         <span class="val" id="total-ot-sunday" style="color: var(--accent-color)">0h</span>
                     </div>
                     <div class="summary-detail-item">
@@ -77,25 +78,25 @@
             <section class="input-section glass-panel">
                 <div class="input-row-multi date-row">
                     <div class="form-group">
-                        <label for="date-picker">Ngày làm việc</label>
+                        <label for="date-picker" data-i18n="work_day">Ngày làm việc</label>
                         <input type="date" id="date-picker">
                     </div>
                     <div class="form-group">
-                        <label for="out-date">Ngày tan ca</label>
+                        <label for="out-date" data-i18n="checkout_day">Ngày tan ca</label>
                         <input type="date" id="out-date" class="full-width-input">
                     </div>
                 </div>
 
                 <div class="input-row-multi">
                     <div class="form-group">
-                        <label for="out-time">Giờ tan ca</label>
+                        <label for="out-time" data-i18n="checkout_time">Giờ tan ca</label>
                         <input type="time" id="out-time" class="full-width-input">
                     </div>
                     <div class="form-group checkbox-cell">
                         <label class="custom-checkbox">
                             <input type="checkbox" id="realtime-checkout">
                             <span class="checkmark"></span>
-                            <span class="label-text">Chấm công ngay</span>
+                            <span class="label-text" data-i18n="record_now">Chấm công ngay</span>
                         </label>
                     </div>
                 </div>
@@ -106,12 +107,12 @@
 
                 <div class="info-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
                     <div style="display: flex; justify-content: space-between;">
-                        <span>Giờ tiêu chuẩn: <strong id="standard-time-display">17:00</strong></span>
-                        <span>Phiếu ăn: <strong id="meal-ticket-display"
+                        <span><span data-i18n="std_time">Giờ tiêu chuẩn</span>: <strong id="standard-time-display">17:00</strong></span>
+                        <span><span data-i18n="meal_tickets">Phiếu ăn</span>: <strong id="meal-ticket-display"
                                 style="color: var(--accent-color)">0</strong></span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                        <span>Tổng OT: <strong id="calculated-ot" class="highlight-text">--</strong></span>
+                        <span><span data-i18n="total_ot">Tổng OT</span>: <strong id="calculated-ot" class="highlight-text">--</strong></span>
                     </div>
 
                     <div class="ot-breakdown">
@@ -124,23 +125,23 @@
                             <span id="ot-seg-2">0h</span>
                         </div>
                         <div class="ot-segment">
-                            <label>Sau 24h</label>
+                            <label data-i18n="after_24h">Sau 24h</label>
                             <span id="ot-seg-3">0h</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="action-buttons">
-                    <button id="save-btn" class="primary-btn">Lưu chấm công</button>
+                    <button id="save-btn" class="primary-btn" data-i18n="save_record">Lưu chấm công</button>
                 </div>
             </section>
 
             <!-- Recent Logs -->
             <section class="logs-section">
-                <h3>Lịch sử chấm công</h3>
+                <h3 data-i18n="record_history">Lịch sử chấm công</h3>
                 <div id="logs-list" class="logs-list">
                     <!-- Log items will be injected here -->
-                    <div class="empty-state">Chưa có dữ liệu tháng này</div>
+                    <div class="empty-state" data-i18n="no_data">Chưa có dữ liệu tháng này</div>
                 </div>
             </section>
         </main>
@@ -149,23 +150,23 @@
         <div id="settings-modal" class="modal hidden">
             <div class="modal-content glass-panel">
                 <div class="modal-header">
-                    <h3>Cài đặt</h3>
+                    <h3 data-i18n="settings">Cài đặt</h3>
                     <button id="close-settings"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="setting-standard-time">Giờ tan ca tiêu chuẩn</label>
+                        <label for="setting-standard-time" data-i18n="std_checkout_time">Giờ tan ca tiêu chuẩn</label>
                         <input type="time" id="setting-standard-time" value="17:30">
-                        <p class="hint">Giờ kết thúc làm việc chính thức để tính OT.</p>
+                        <p class="hint" data-i18n="std_checkout_hint">Giờ kết thúc làm việc chính thức để tính OT.</p>
                     </div>
 
                     <div class="form-group">
-                        <label>Dữ liệu chấm công</label>
+                        <label data-i18n="attendance_data">Dữ liệu chấm công</label>
                         <button id="export-btn" class="secondary-btn full-width"><i class="fa-solid fa-file-csv"></i>
-                            Xuất File CSV (Tháng này)</button>
+                            <span data-i18n="export_csv">Xuất File CSV (Tháng này)</span></button>
                     </div>
 
-                    <button id="save-settings-btn" class="primary-btn full-width">Lưu Cài Đặt</button>
+                    <button id="save-settings-btn" class="primary-btn full-width" data-i18n="save_settings">Lưu Cài Đặt</button>
                 </div>
             </div>
         </div>
@@ -179,14 +180,14 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="login-id">ID Đăng Nhập</label>
+                        <label for="login-id" data-i18n="login_id">ID Đăng Nhập</label>
                         <input type="text" id="login-id" class="full-width-input" value="Admin" placeholder="Nhập ID">
                     </div>
                     <div class="form-group">
-                        <label for="login-pass">Mật Khẩu</label>
+                        <label for="login-pass" data-i18n="password">Mật Khẩu</label>
                         <input type="password" id="login-pass" class="full-width-input" placeholder="Nhập mật khẩu">
                     </div>
-                    <button id="login-submit-btn" class="primary-btn full-width">Đăng Nhập</button>
+                    <button id="login-submit-btn" class="primary-btn full-width" data-i18n="login_btn">Đăng Nhập</button>
                 </div>
             </div>
         </div>
