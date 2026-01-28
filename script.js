@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaveToggle = document.getElementById('leave-toggle');
     const leaveConfirmBtn = document.getElementById('confirm-leave-btn');
     const leaveInput = document.getElementById('leave-days-input');
+    const holidayToggle = document.getElementById('holiday-toggle');
+    const holidayConfirmBtn = document.getElementById('confirm-holiday-btn');
+    const holidayInput = document.getElementById('holiday-days-input');
 
     // Settings Elements
     const settingsBtn = document.getElementById('settings-btn');
@@ -79,7 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
             leave_days: "Nghỉ phép", leave_request: "Nghỉ phép", fill_leave_days: "Số ngày", confirm: "Xác nhận",
             standard_work_hours: "Giờ tiêu chuẩn", checkout_day: "Ngày tan ca", std_start_time: "Giờ bắt đầu tiêu chuẩn",
             ot_17_22: "17h - 22h", ot_22_24: "22h - 24h", saturday_work: "Thứ 7", normal_off: "Nghỉ bình thường",
-            id_placeholder: "Nhập ID", pass_placeholder: "Nhập mật khẩu", unknown: "Chưa biết"
+            id_placeholder: "Nhập ID", pass_placeholder: "Nhập mật khẩu", unknown: "Chưa biết",
+            holiday_request: "Nghỉ lễ", holiday_summary: "Nghỉ lễ", holiday_ot: "Lễ (OT)"
         },
         ko: {
             total_ot: "총 초과 근무(OT)", meal_tickets: "식권(개)", sunday: "일요일(OT)", work_day: "근무 일자",
@@ -100,7 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
             leave_days: "휴가", leave_request: "휴가 신청", fill_leave_days: "휴가 일수", confirm: "저장",
             standard_work_hours: "정규 근무", checkout_day: "퇴근 일자", std_start_time: "표준 출근 시간",
             ot_17_22: "17시 - 22시", ot_22_24: "22시 - 24시", saturday_work: "토요일", normal_off: "정기 휴무",
-            id_placeholder: "아이디를 입력하세요", pass_placeholder: "비밀번호를 입력하세요", unknown: "미정"
+            id_placeholder: "아이디를 입력하세요", pass_placeholder: "비밀번호를 입력하세요", unknown: "미정",
+            holiday_request: "공휴일", holiday_summary: "공휴일", holiday_ot: "공휴일 (OT)"
         }
     };
 
@@ -206,6 +211,38 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        if (holidayToggle) {
+            holidayToggle.addEventListener('click', () => {
+                holidayToggle.classList.toggle('active');
+                if (holidayToggle.classList.contains('active')) {
+                    if (!holidayInput.value) holidayInput.value = "1.0";
+                    holidayConfirmBtn.disabled = false;
+                    holidayConfirmBtn.style.opacity = "1";
+                    holidayConfirmBtn.style.pointerEvents = "auto";
+                } else {
+                    holidayInput.value = "";
+                    holidayConfirmBtn.disabled = true;
+                    holidayConfirmBtn.style.opacity = "0.5";
+                    holidayConfirmBtn.style.pointerEvents = "none";
+                }
+                calculateOT();
+            });
+        }
+
+        holidayConfirmBtn?.addEventListener('click', () => {
+            if (holidayToggle.classList.contains('active') && !holidayInput.value) {
+                showToast(translations[currentLang].fill_leave_days, 'error');
+                return;
+            }
+            saveLog(holidayConfirmBtn, 'holiday').then(() => {
+                holidayToggle.classList.remove('active');
+                holidayInput.value = "";
+                holidayConfirmBtn.disabled = true;
+                holidayConfirmBtn.style.opacity = "0.5";
+                calculateOT();
+            });
+        });
+
         prevMonthBtn?.addEventListener('click', () => changeMonth(-1));
         nextMonthBtn?.addEventListener('click', () => changeMonth(1));
 
@@ -293,6 +330,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 leaveConfirmBtn.style.opacity = "0.5";
                 leaveConfirmBtn.style.pointerEvents = "none";
             }
+            if (log.holidayDays > 0) {
+                holidayToggle.classList.add('active');
+                holidayInput.value = log.holidayDays;
+                holidayConfirmBtn.disabled = false;
+                holidayConfirmBtn.style.opacity = "1";
+                holidayConfirmBtn.style.pointerEvents = "auto";
+            } else {
+                holidayToggle.classList.remove('active');
+                holidayInput.value = "";
+                holidayConfirmBtn.disabled = true;
+                holidayConfirmBtn.style.opacity = "0.5";
+                holidayConfirmBtn.style.pointerEvents = "none";
+            }
             calculateOT();
         } else {
             outTimeInput.value = '';
@@ -305,6 +355,11 @@ document.addEventListener('DOMContentLoaded', () => {
             leaveConfirmBtn.disabled = true;
             leaveConfirmBtn.style.opacity = "0.5";
             leaveConfirmBtn.style.pointerEvents = "none";
+            holidayToggle.classList.remove('active');
+            holidayInput.value = "";
+            holidayConfirmBtn.disabled = true;
+            holidayConfirmBtn.style.opacity = "0.5";
+            holidayConfirmBtn.style.pointerEvents = "none";
             if (mealTicketDisplay) mealTicketDisplay.textContent = '0';
             calculateOT();
         }
@@ -324,11 +379,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function calculateOT() {
         const leaveDaysVal = (leaveToggle && leaveToggle.classList.contains('active')) ? parseFloat(leaveInput?.value || '0') : 0;
+        const holidayDaysVal = (holidayToggle && holidayToggle.classList.contains('active')) ? parseFloat(holidayInput?.value || '0') : 0;
         const outTime = outTimeInput.value, outDateVal = outDateInput.value;
         if (!outTime || !outDateVal) {
             calculatedOtDisplay.textContent = '--';
             if (mealTicketDisplay) mealTicketDisplay.textContent = '0';
-            return { total: 0, s1: 0, s2: 0, s3: 0, meals: 0, standardHours: 0, leaveDays: leaveDaysVal };
+            const stdH = (Math.max(leaveDaysVal, holidayDaysVal)) * 8;
+            return { total: 0, s1: 0, s2: 0, s3: 0, meals: 0, standardHours: stdH, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal };
         }
 
         const dateKey = formatDateKey(selectedDate);
@@ -362,10 +419,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
 
             calculatedOtDisplay.textContent = Math.floor(durationMins / 60) + 'h ' + (Math.floor(durationMins % 60) > 0 ? Math.floor(durationMins % 60) + 'p' : '');
-            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), meals, standardHours: 0, leaveDays: leaveDaysVal, isSaturday: isSaturday };
+            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), holidayOt: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday };
         }
 
-        if (endDT <= startDT) return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, isSaturday: isSaturday };
+        // Holiday with OT (Treat like Sunday)
+        if (holidayDaysVal > 0 && outTime && outDateVal) {
+            let durationMins = Math.max(0, (endDT - startDT) / 60000);
+            if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
+            calculatedOtDisplay.textContent = Math.floor(durationMins / 60) + 'h ' + (Math.floor(durationMins % 60) > 0 ? Math.floor(durationMins % 60) + 'p' : '');
+            return {
+                total: parseFloat((durationMins / 60).toFixed(2)),
+                s1: 0, s2: 0, s3: 0,
+                sunday: 0,
+                holidayOt: parseFloat((durationMins / 60).toFixed(2)),
+                meals,
+                standardHours: 8,
+                leaveDays: 0,
+                holidayDays: holidayDaysVal,
+                isSaturday: isSaturday
+            };
+        }
+
+        if (endDT <= startDT) return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday, holidayOt: 0 };
 
         const b1 = new Date(selectedDate); b1.setHours(22, 0, 0, 0);
         const b2 = new Date(selectedDate); b2.setDate(b2.getDate() + 1); b2.setHours(0, 0, 0, 0);
@@ -385,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
         calculatedOtDisplay.textContent = Math.floor(totalMin / 60) + 'h ' + (Math.floor(totalMin % 60) > 0 ? Math.floor(totalMin % 60) + 'p' : '');
 
         let stdM = 0;
-        if (leaveDaysVal < 1) {
+        if (leaveDaysVal < 1 && holidayDaysVal < 1) {
             let arrivalForStd = ih + im / 60;
             if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) arrivalForStd = standardStartHour;
 
@@ -394,10 +469,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (p1e > p1) stdM += (p1e - p1) * 60;
             const p2 = Math.max(13, arrivalForStd), p2e = Math.min(standardEndHour, checkout);
             if (p2e > p2) stdM += (p2e - p2) * 60;
-            if (leaveDaysVal === 0.5) stdM = Math.min(stdM, 240);
-        } else if (leaveDaysVal > 0) {
-            // Count leave hours as standard hours
-            stdM = leaveDaysVal * 8 * 60;
+            if (leaveDaysVal === 0.5 || holidayDaysVal === 0.5) stdM = Math.min(stdM, 240);
+        } else if (leaveDaysVal > 0 || holidayDaysVal > 0) {
+            // Count leave/holiday hours as standard hours
+            stdM = (Math.max(leaveDaysVal, holidayDaysVal)) * 8 * 60;
         }
         return {
             total: parseFloat((totalMin / 60).toFixed(2)),
@@ -407,8 +482,10 @@ document.addEventListener('DOMContentLoaded', () => {
             meals,
             standardHours: parseFloat((stdM / 60).toFixed(2)),
             leaveDays: leaveDaysVal,
+            holidayDays: holidayDaysVal,
             isSaturday: isSaturday,
-            otSunday: isSunday ? parseFloat((totalMin / 60).toFixed(2)) : 0
+            otSunday: isSunday ? parseFloat((totalMin / 60).toFixed(2)) : 0,
+            holidayOt: 0
         };
     }
 
@@ -449,7 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const otData = calculateOT();
         const existing = logs[dk];
         const isLeave = (leaveToggle?.classList.contains('active') && parseFloat(leaveInput.value || '0') > 0);
-        if (!isLeave && actionType !== 'checkin' && (!outTimeInput.value || !outDateInput.value)) {
+        const isHoliday = (holidayToggle?.classList.contains('active') && parseFloat(holidayInput.value || '0') > 0);
+        if (!isLeave && !isHoliday && actionType !== 'checkin' && (!outTimeInput.value || !outDateInput.value)) {
             if (triggerBtn) { triggerBtn.innerHTML = orig; triggerBtn.disabled = false; }
             showToast(translations[currentLang].input_needed, 'error'); return;
         }
@@ -461,8 +539,8 @@ document.addEventListener('DOMContentLoaded', () => {
             inTime: inTimeValue,
             outTime: outTimeInput.value, outDate: outDateInput.value,
             otHours: otData.total, otSeg1: otData.s1, otSeg2: otData.s2, otSeg3: otData.s3,
-            otSunday: otData.sunday || 0, meals: otData.meals, standardHours: otData.standardHours,
-            leaveDays: otData.leaveDays, location: loc || (existing && existing.location)
+            otSunday: otData.sunday || 0, holidayOt: otData.holidayOt || 0, meals: otData.meals, standardHours: otData.standardHours,
+            leaveDays: otData.leaveDays, holidayDays: otData.holidayDays, location: loc || (existing && existing.location)
         };
         localStorage.setItem('ot_logs', JSON.stringify(logs));
         renderLogs();
@@ -502,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sort descending (newest first)
         allDays.sort((a, b) => b.timestamp - a.timestamp);
 
-        let tOT = 0, tM = 0, tS = 0, tL = 0, ts1 = 0, ts2 = 0, ts3 = 0, tSun = 0, tSat = 0;
+        let tOT = 0, tM = 0, tS = 0, tL = 0, tH = 0, ts1 = 0, ts2 = 0, ts3 = 0, tSun = 0, tSat = 0, tHOt = 0;
 
         // Calculate totals from existing logs
         Object.values(logs).filter(l => isSameMonth(new Date(l.date), currentViewMonth)).forEach(l => {
@@ -512,9 +590,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ts2 += (l.otSeg2 || 0);
             ts3 += (l.otSeg3 || 0);
             tSun += (l.otSunday || 0);
+            tHOt += (l.holidayOt || 0);
             tL += (l.leaveDays || 0);
+            const hld = (l.holidayDays || 0);
+            tH += hld;
 
-            // Use stored standardHours if available, otherwise fallback to 0
+            // Use stored standardHours if available
             tS += (l.standardHours || 0);
 
             const d = new Date(l.date);
@@ -530,8 +611,12 @@ document.addEventListener('DOMContentLoaded', () => {
         totalOtS2Display.textContent = ts2.toFixed(1) + 'h';
         totalOtS3Display.textContent = ts3.toFixed(1) + 'h';
         if (totalOtSundayDisplay) totalOtSundayDisplay.textContent = tSun.toFixed(1) + 'h';
+        const hOtSum = document.getElementById('total-ot-holiday');
+        if (hOtSum) hOtSum.textContent = tHOt.toFixed(1) + 'h';
         const satWorkDisplay = document.getElementById('total-sat-work');
         if (satWorkDisplay) satWorkDisplay.textContent = tSat;
+        const holidaySum = document.getElementById('total-holiday-summary');
+        if (holidaySum) holidaySum.textContent = tH;
 
         logsList.innerHTML = '';
         allDays.forEach(dayData => {
@@ -559,9 +644,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 let lvH = '', wkH = '';
-                if (l.leaveDays > 0) {
-                    lvH = `<span style="display:block; font-size:14px; font-weight:600; color:#f59e0b;">${translations[currentLang].leave_days}: ${l.leaveDays}</span>`;
-                    if (l.otHours > 0) wkH = `<span class="log-ot">+${l.otHours}h OT</span>`;
+                if (l.leaveDays > 0 || l.holidayDays > 0) {
+                    const label = l.holidayDays > 0 ? translations[currentLang].holiday_request : translations[currentLang].leave_days;
+                    const val = l.holidayDays > 0 ? l.holidayDays : l.leaveDays;
+                    lvH = `<span style="display:block; font-size:14px; font-weight:600; color:${l.holidayDays > 0 ? '#10b981' : '#f59e0b'};">${label}: ${val}</span>`;
+                    const otH = l.otHours || 0;
+                    if (otH > 0) wkH = `<span class="log-ot">+${otH}h ${l.holidayDays > 0 ? 'Holiday OT' : 'OT'}</span>`;
                 } else {
                     const otH = l.otHours || 0;
                     lvH = `<span class="log-ot">${otH > 0 ? '+' + otH + 'h' : '0h'}</span>`;

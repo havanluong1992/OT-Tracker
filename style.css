@@ -629,10 +629,9 @@ input[type="time"]:focus {
 .summary-details {
     grid-column: span 2;
     display: grid;
-    grid-template-columns: repeat(5, 1fr) !important;
-    gap: 4px;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 10px 4px;
+    grid-template-columns: repeat(7, 1fr) !important;
+    gap: 2px;
+    padding: 10px 2px;
     border-radius: 12px;
     margin-top: 4px;
 }
@@ -800,6 +799,26 @@ input[type="time"]:focus {
     font-size: 16px;
 }
 
+/* Holiday Panel Specifics */
+.holiday-panel {
+    margin-top: 10px;
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.holiday-panel .leave-checkbox {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.holiday-panel .leave-toggle-box.active .leave-checkbox {
+    background: #10b981;
+    border-color: #10b981;
+}
+
+.holiday-panel #confirm-holiday-btn {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
 /* Admin Mode Indicator */
 .admin-logged-in #login-btn {
     color: var(--success);
@@ -838,8 +857,8 @@ input[type="time"]:focus {
 .leave-checkbox {
     width: 32px;
     height: 32px;
-    background: rgba(67, 97, 238, 0.8);
-    /* Match blue color from sketch */
+    background: rgba(245, 158, 11, 0.2);
+    border: 2px solid rgba(245, 158, 11, 0.5);
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -850,7 +869,9 @@ input[type="time"]:focus {
 }
 
 .leave-toggle-box.active .leave-checkbox {
-    background: #10b981;
+    background: #f59e0b;
+    /* Orange when active */
+    border-color: #f59e0b;
     transform: scale(1.05);
 }
 
@@ -881,7 +902,7 @@ input[type="time"]:focus {
     padding-left: 8px;
 }
 
-#leave-days-input {
+.leave-input-area input {
     width: 48px;
     padding: 2px 4px;
     background: rgba(255, 255, 255, 0.05);
@@ -893,7 +914,7 @@ input[type="time"]:focus {
     font-size: 15px;
 }
 
-#leave-days-input::placeholder {
+.leave-input-area input::placeholder {
     color: rgba(255, 255, 255, 0.6);
 }
 

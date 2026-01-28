@@ -64,8 +64,8 @@
                         <span class="val" id="total-ot-sunday" style="color: var(--accent-color)">0h</span>
                     </div>
                     <div class="summary-detail-item">
-                        <span class="lbl" data-i18n="saturday_work">Thứ 7</span>
-                        <span class="val" id="total-sat-work" style="color: #4cc9f0">0day</span>
+                        <span class="lbl" data-i18n="holiday_ot">Lễ (OT)</span>
+                        <span class="val" id="total-ot-holiday" style="color: #10b981">0h</span>
                     </div>
                     <div class="summary-detail-item">
                         <span class="lbl">
@@ -79,6 +79,14 @@
                     <div class="summary-detail-item">
                         <span class="lbl">> 24h</span>
                         <span class="val" id="total-ot-s3">0h</span>
+                    </div>
+                    <div class="summary-detail-item">
+                        <span class="lbl" data-i18n="saturday_work">Thứ 7</span>
+                        <span class="val" id="total-sat-work" style="color: #4cc9f0">0day</span>
+                    </div>
+                    <div class="summary-detail-item">
+                        <span class="lbl" data-i18n="holiday_summary">Nghỉ lễ</span>
+                        <span class="val" id="total-holiday-summary" style="color: #10b981">0day</span>
                     </div>
                 </div>
                 <!-- Hidden/Less important stat moved or kept tiny if needed, but 3 cols might be tight. 
@@ -132,6 +140,27 @@
                     </div>
 
                     <button id="confirm-leave-btn" class="confirm-btn" disabled
+                        style="opacity: 0.5; pointer-events: none;">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span data-i18n="confirm">Xác nhận</span>
+                    </button>
+                </div>
+
+                <!-- Holiday Panel -->
+                <div class="leave-panel-new holiday-panel">
+                    <div class="leave-toggle-box" id="holiday-toggle">
+                        <div class="leave-checkbox" id="holiday-checkbox-ui">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <span data-i18n="holiday_request">Nghỉ lễ</span>
+                    </div>
+
+                    <div class="leave-input-area">
+                        <span class="input-hint" data-i18n="fill_leave_days">Số ngày</span>
+                        <input type="number" id="holiday-days-input" step="0.5" min="0" max="1" placeholder="0.0">
+                    </div>
+
+                    <button id="confirm-holiday-btn" class="confirm-btn" disabled
                         style="opacity: 0.5; pointer-events: none;">
                         <i class="fa-solid fa-circle-check"></i>
                         <span data-i18n="confirm">Xác nhận</span>
