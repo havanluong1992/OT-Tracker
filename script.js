@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Simple lunch deduction if spanning 12:00-13:00
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
 
-            calculatedOtDisplay.textContent = Math.floor(durationMins / 60) + 'h ' + (Math.floor(durationMins % 60) > 0 ? Math.floor(durationMins % 60) + 'p' : '');
+            calculatedOtDisplay.textContent = (durationMins / 60).toFixed(1) + 'h';
             return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), holidayOt: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday };
         }
 
@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (holidayDaysVal > 0 && outTime && outDateVal) {
             let durationMins = Math.max(0, (endDT - startDT) / 60000);
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
-            calculatedOtDisplay.textContent = Math.floor(durationMins / 60) + 'h ' + (Math.floor(durationMins % 60) > 0 ? Math.floor(durationMins % 60) + 'p' : '');
+            calculatedOtDisplay.textContent = (durationMins / 60).toFixed(1) + 'h';
             return {
                 total: parseFloat((durationMins / 60).toFixed(2)),
                 s1: 0, s2: 0, s3: 0,
@@ -453,11 +453,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const s2 = getM(new Date(Math.max(startDT, b1)), Math.min(endDT, b2));
         const s3 = getM(new Date(Math.max(startDT, b2)), endDT);
 
-        otSeg1Display.textContent = Math.floor(s1 / 60) + 'h';
-        otSeg2Display.textContent = Math.floor(s2 / 60) + 'h';
-        otSeg3Display.textContent = Math.floor(s3 / 60) + 'h';
+        otSeg1Display.textContent = (s1 / 60).toFixed(1) + 'h';
+        otSeg2Display.textContent = (s2 / 60).toFixed(1) + 'h';
+        otSeg3Display.textContent = (s3 / 60).toFixed(1) + 'h';
         const totalMin = s1 + s2 + s3;
-        calculatedOtDisplay.textContent = Math.floor(totalMin / 60) + 'h ' + (Math.floor(totalMin % 60) > 0 ? Math.floor(totalMin % 60) + 'p' : '');
+        calculatedOtDisplay.textContent = (totalMin / 60).toFixed(1) + 'h';
 
         let stdM = 0;
         if (leaveDaysVal < 1 && holidayDaysVal < 1) {
