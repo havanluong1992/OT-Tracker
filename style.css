@@ -203,7 +203,7 @@ h1 {
 }
 
 #setting-standard-time {
-    width: 70%;
+    width: 100%;
 }
 
 /* Input Section */
@@ -220,7 +220,7 @@ h1 {
 }
 
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 
@@ -367,7 +367,7 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .modal-header h3 {

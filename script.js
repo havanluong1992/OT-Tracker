@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settings-modal');
     const closeSettingsBtn = document.getElementById('close-settings');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
+    const settingStartStandardTimeInput = document.getElementById('setting-start-standard-time');
     const settingStandardTimeInput = document.getElementById('setting-standard-time');
     const toast = document.getElementById('toast');
 
@@ -78,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             leave_days: "Nghỉ phép", leave_request: "Nghỉ phép", fill_leave_days: "Số ngày", confirm: "Xác nhận",
             standard_work_hours: "Giờ tiêu chuẩn", checkout_day: "Ngày tan ca", std_start_time: "Giờ bắt đầu tiêu chuẩn",
             ot_17_22: "17h - 22h", ot_22_24: "22h - 24h", saturday_work: "Thứ 7", normal_off: "Nghỉ bình thường",
-            id_placeholder: "Nhập ID", pass_placeholder: "Nhập mật khẩu"
+            id_placeholder: "Nhập ID", pass_placeholder: "Nhập mật khẩu", unknown: "Chưa biết"
         },
         ko: {
             total_ot: "총 초과 근무(OT)", meal_tickets: "식권(개)", sunday: "일요일(OT)", work_day: "근무 일자",
@@ -99,13 +100,30 @@ document.addEventListener('DOMContentLoaded', () => {
             leave_days: "휴가", leave_request: "휴가 신청", fill_leave_days: "휴가 일수", confirm: "저장",
             standard_work_hours: "정규 근무", checkout_day: "퇴근 일자", std_start_time: "표준 출근 시간",
             ot_17_22: "17시 - 22시", ot_22_24: "22시 - 24시", saturday_work: "토요일", normal_off: "정기 휴무",
-            id_placeholder: "아이디를 입력하세요", pass_placeholder: "비밀번호를 입력하세요"
+            id_placeholder: "아이디를 입력하세요", pass_placeholder: "비밀번호를 입력하세요", unknown: "미정"
         }
     };
 
     init();
 
     function init() {
+        // Aggressive repair for swapped or corrupted settings from previous bug
+        const [sh, sm] = (settings.startStandardTime || "08:00").split(':').map(Number);
+        const [eh, em] = (settings.standardTime || "17:00").split(':').map(Number);
+
+        if (sh >= eh || sh >= 12) { // If start is after end or start is afternoon, it's likely wrong
+            settings.startStandardTime = '08:00';
+            settings.standardTime = '17:00';
+            localStorage.setItem('ot_settings', JSON.stringify(settings));
+        }
+
+        // Fix today's log if it was corrupted by the 17:00 fallback bug
+        const todayK = formatDateKey(new Date());
+        if (logs[todayK] && logs[todayK].inTime === '17:00' && logs[todayK].outTime) {
+            logs[todayK].inTime = settings.startStandardTime;
+            localStorage.setItem('ot_logs', JSON.stringify(logs));
+        }
+
         datePicker.valueAsDate = selectedDate;
         outDateInput.valueAsDate = selectedDate;
         updateUIText();
@@ -317,6 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const endDT = new Date(outDateVal);
         const [oh, om] = outTime.split(':').map(Number); endDT.setHours(oh, om, 0, 0);
 
+        const [stdSh, stdSm] = settings.startStandardTime.split(':').map(Number);
+        const [stdEh, stdEm] = settings.standardTime.split(':').map(Number);
+        const standardStartHour = stdSh + stdSm / 60;
+        const standardEndHour = stdEh + stdEm / 60;
+
         let meals = 0;
         const cp20 = new Date(selectedDate); cp20.setHours(20, 0, 0, 0);
         const cp22 = new Date(selectedDate); cp22.setHours(22, 0, 0, 0);
@@ -327,9 +350,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mealTicketDisplay) mealTicketDisplay.textContent = meals;
 
         if (selectedDate.getDay() === 0) {
-            let mins = Math.max(0, (endDT - startDT) / 60000 + 480);
-            calculatedOtDisplay.textContent = Math.floor(mins / 60) + 'h ' + (Math.floor(mins % 60) > 0 ? Math.floor(mins % 60) + 'p' : '');
-            return { total: parseFloat((mins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((mins / 60).toFixed(2)), meals, standardHours: 0, leaveDays: leaveDaysVal };
+            let durationMins = Math.max(0, (endDT - startDT) / 60000);
+            // Simple lunch deduction if spanning 12:00-13:00
+            if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
+
+            calculatedOtDisplay.textContent = Math.floor(durationMins / 60) + 'h ' + (Math.floor(durationMins % 60) > 0 ? Math.floor(durationMins % 60) + 'p' : '');
+            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), meals, standardHours: 0, leaveDays: leaveDaysVal };
         }
 
         if (endDT <= startDT) return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: 0, leaveDays: leaveDaysVal };
@@ -337,8 +363,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const b1 = new Date(selectedDate); b1.setHours(22, 0, 0, 0);
         const b2 = new Date(selectedDate); b2.setDate(b2.getDate() + 1); b2.setHours(0, 0, 0, 0);
         const getM = (s, e) => (e > s ? (e - s) / 60000 : 0);
-        const h17 = new Date(selectedDate); h17.setHours(17, 0, 0, 0);
-        const s1 = getM(new Date(Math.max(startDT, h17)), Math.min(endDT, b1));
+        const stdEndDT = new Date(selectedDate); stdEndDT.setHours(stdEh, stdEm, 0, 0);
+        const s1 = getM(new Date(Math.max(startDT, stdEndDT)), Math.min(endDT, b1));
         const s2 = getM(new Date(Math.max(startDT, b1)), Math.min(endDT, b2));
         const s3 = getM(new Date(Math.max(startDT, b2)), endDT);
 
@@ -351,15 +377,15 @@ document.addEventListener('DOMContentLoaded', () => {
         let stdM = 0;
         if (leaveDaysVal < 1) {
             let arrivalForStd = ih + im / 60;
-            // Normalize 7:45 - 8:15 to 8:00 for standard hours calculation
-            if (arrivalForStd >= 7.75 && arrivalForStd <= 8.25) {
-                arrivalForStd = 8.0;
+            // Normalize +/- 15 mins to standard start
+            if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) {
+                arrivalForStd = standardStartHour;
             }
 
             const checkout = (endDT.getDate() !== startDT.getDate()) ? 24 : oh + om / 60;
-            const p1 = Math.max(8, arrivalForStd), p1e = Math.min(12, checkout);
+            const p1 = Math.max(standardStartHour, arrivalForStd), p1e = Math.min(12, checkout);
             if (p1e > p1) stdM += (p1e - p1) * 60;
-            const p2 = Math.max(13, arrivalForStd), p2e = Math.min(17, checkout);
+            const p2 = Math.max(13, arrivalForStd), p2e = Math.min(standardEndHour, checkout);
             if (p2e > p2) stdM += (p2e - p2) * 60;
             if (leaveDaysVal === 0.5) stdM = Math.min(stdM, 240);
         }
@@ -387,10 +413,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) { }
         }
 
+        let checkinTimeForLog = null;
         if (actionType === 'checkin') {
             const now = new Date(); selectedDate = now; datePicker.valueAsDate = now; dk = formatDateKey(now);
             const log = logs[dk] || { date: dk, timestamp: now.getTime() };
-            log.inTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            checkinTimeForLog = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            log.inTime = checkinTimeForLog;
             logs[dk] = log;
         } else if (actionType === 'checkout' && !outTimeInput.value) {
             const now = new Date();
@@ -401,14 +429,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const otData = calculateOT();
         const existing = logs[dk];
         const isLeave = (leaveToggle?.classList.contains('active') && parseFloat(leaveInput.value || '0') > 0);
-        if (!isLeave && (!outTimeInput.value || !outDateInput.value)) {
+        if (!isLeave && actionType !== 'checkin' && (!outTimeInput.value || !outDateInput.value)) {
             if (triggerBtn) { triggerBtn.innerHTML = orig; triggerBtn.disabled = false; }
             showToast(translations[currentLang].input_needed, 'error'); return;
         }
 
+        const inTimeValue = checkinTimeForLog || (existing && existing.inTime) || settings.startStandardTime;
+
         logs[dk] = {
             date: dk, timestamp: selectedDate.getTime(),
-            inTime: (existing && existing.inTime) || (actionType === 'checkin' ? logs[dk].inTime : settings.startStandardTime),
+            inTime: inTimeValue,
             outTime: outTimeInput.value, outDate: outDateInput.value,
             otHours: otData.total, otSeg1: otData.s1, otSeg2: otData.s2, otSeg3: otData.s3,
             otSunday: otData.sunday || 0, meals: otData.meals, standardHours: otData.standardHours,
@@ -505,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (l.otHours > 0) wkH = `<span class="log-ot">+${l.otHours}h OT</span>`;
                 } else {
                     lvH = `<span class="log-ot">+${l.otHours}h</span>`;
-                    wkH = `<span class="log-time">${l.inTime ? translations[currentLang].vào + ': ' + l.inTime + ' | ' : ''}${translations[currentLang].ve_luc}: ${l.outTime}</span>`;
+                    wkH = `<span class="log-time">${l.inTime ? translations[currentLang].vào + ': ' + l.inTime + ' | ' : ''}${translations[currentLang].ve_luc}: ${l.outTime || translations[currentLang].unknown}</span>`;
                 }
 
                 contentHtml = `<div class="log-details">${lvH}${l.otSunday ? `<span style="font-size:10px;color:var(--accent-color)">${translations[currentLang].sunday}</span>` : ''}${l.meals ? `<span style="font-size:11px;color:var(--text-secondary);margin-right:8px;">${l.meals} ${translations[currentLang].phieu_an}</span>` : ''}${wkH}${locH}</div>
@@ -524,15 +554,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSettings() {
-        if (settingStandardTimeInput) settingStandardTimeInput.value = settings.startStandardTime;
-        const endI = document.getElementById('setting-standard-work-end');
-        if (endI) endI.value = settings.standardTime;
+        if (settingStartStandardTimeInput) settingStartStandardTimeInput.value = settings.startStandardTime;
+        if (settingStandardTimeInput) settingStandardTimeInput.value = settings.standardTime;
     }
 
     function saveSettings() {
-        settings.startStandardTime = settingStandardTimeInput.value;
-        const endI = document.getElementById('setting-standard-work-end');
-        if (endI) settings.standardTime = endI.value;
+        if (settingStartStandardTimeInput) settings.startStandardTime = settingStartStandardTimeInput.value;
+        if (settingStandardTimeInput) settings.standardTime = settingStandardTimeInput.value;
         localStorage.setItem('ot_settings', JSON.stringify(settings));
         showToast(translations[currentLang].settings_saved);
         closeModal(settingsModal);
