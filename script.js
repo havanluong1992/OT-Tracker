@@ -270,9 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadLogForSelectedDate() {
         const dateKey = formatDateKey(selectedDate);
         const log = logs[dateKey];
+
+        // Always sync the date picker to the selectedDate
+        datePicker.value = dateKey;
+
         if (log) {
             outTimeInput.value = log.outTime || '';
-            outDateInput.value = log.outDate || formatDateKey(selectedDate);
+            outDateInput.value = log.outDate || dateKey;
             checkinNowBtn.disabled = !!log.inTime;
             checkinNowBtn.style.opacity = log.inTime ? "0.5" : "1";
             checkinNowBtn.style.pointerEvents = log.inTime ? "none" : "auto";
@@ -292,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
             calculateOT();
         } else {
             outTimeInput.value = '';
-            outDateInput.valueAsDate = selectedDate;
+            outDateInput.value = dateKey;
             checkinNowBtn.disabled = false;
             checkinNowBtn.style.opacity = "1";
             checkinNowBtn.style.pointerEvents = "auto";
@@ -344,27 +348,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const cp20 = new Date(selectedDate); cp20.setHours(20, 0, 0, 0);
         const cp22 = new Date(selectedDate); cp22.setHours(22, 0, 0, 0);
         const cp24 = new Date(selectedDate); cp24.setDate(cp24.getDate() + 1); cp24.setHours(0, 0, 0, 0);
+        const isSaturday = selectedDate.getDay() === 6;
+        const isSunday = selectedDate.getDay() === 0;
+
         if (endDT >= cp20) meals++;
-        if (endDT > cp22) meals++;
-        if (endDT > cp24) meals++;
+        if (endDT >= cp22) meals++;
+        if (endDT >= cp24) meals++;
         if (mealTicketDisplay) mealTicketDisplay.textContent = meals;
 
-        if (selectedDate.getDay() === 0) {
+        if (isSunday) {
             let durationMins = Math.max(0, (endDT - startDT) / 60000);
             // Simple lunch deduction if spanning 12:00-13:00
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
 
             calculatedOtDisplay.textContent = Math.floor(durationMins / 60) + 'h ' + (Math.floor(durationMins % 60) > 0 ? Math.floor(durationMins % 60) + 'p' : '');
-            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), meals, standardHours: 0, leaveDays: leaveDaysVal };
+            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), meals, standardHours: 0, leaveDays: leaveDaysVal, isSaturday: isSaturday };
         }
 
-        if (endDT <= startDT) return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: 0, leaveDays: leaveDaysVal };
+        if (endDT <= startDT) return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, isSaturday: isSaturday };
 
         const b1 = new Date(selectedDate); b1.setHours(22, 0, 0, 0);
         const b2 = new Date(selectedDate); b2.setDate(b2.getDate() + 1); b2.setHours(0, 0, 0, 0);
         const getM = (s, e) => (e > s ? (e - s) / 60000 : 0);
-        const stdEndDT = new Date(selectedDate); stdEndDT.setHours(stdEh, stdEm, 0, 0);
-        const s1 = getM(new Date(Math.max(startDT, stdEndDT)), Math.min(endDT, b1));
+
+        const standardEndDT = new Date(selectedDate); standardEndDT.setHours(stdEh, stdEm, 0, 0);
+        const otStartDT = standardEndDT;
+
+        const s1 = getM(new Date(Math.max(startDT, otStartDT)), Math.min(endDT, b1));
         const s2 = getM(new Date(Math.max(startDT, b1)), Math.min(endDT, b2));
         const s3 = getM(new Date(Math.max(startDT, b2)), endDT);
 
@@ -377,10 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let stdM = 0;
         if (leaveDaysVal < 1) {
             let arrivalForStd = ih + im / 60;
-            // Normalize +/- 15 mins to standard start
-            if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) {
-                arrivalForStd = standardStartHour;
-            }
+            if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) arrivalForStd = standardStartHour;
 
             const checkout = (endDT.getDate() !== startDT.getDate()) ? 24 : oh + om / 60;
             const p1 = Math.max(standardStartHour, arrivalForStd), p1e = Math.min(12, checkout);
@@ -388,8 +395,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const p2 = Math.max(13, arrivalForStd), p2e = Math.min(standardEndHour, checkout);
             if (p2e > p2) stdM += (p2e - p2) * 60;
             if (leaveDaysVal === 0.5) stdM = Math.min(stdM, 240);
+        } else if (leaveDaysVal > 0) {
+            // Count leave hours as standard hours
+            stdM = leaveDaysVal * 8 * 60;
         }
-        return { total: parseFloat((totalMin / 60).toFixed(2)), s1: parseFloat((s1 / 60).toFixed(2)), s2: parseFloat((s2 / 60).toFixed(2)), s3: parseFloat((s3 / 60).toFixed(2)), meals, standardHours: parseFloat((stdM / 60).toFixed(2)), leaveDays: leaveDaysVal };
+        return {
+            total: parseFloat((totalMin / 60).toFixed(2)),
+            s1: parseFloat((s1 / 60).toFixed(2)),
+            s2: parseFloat((s2 / 60).toFixed(2)),
+            s3: parseFloat((s3 / 60).toFixed(2)),
+            meals,
+            standardHours: parseFloat((stdM / 60).toFixed(2)),
+            leaveDays: leaveDaysVal,
+            isSaturday: isSaturday,
+            otSunday: isSunday ? parseFloat((totalMin / 60).toFixed(2)) : 0
+        };
     }
 
     async function handleCheckinNow() { await saveLog(checkinNowBtn, 'checkin'); renderLogs(); loadLogForSelectedDate(); }
@@ -485,10 +505,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let tOT = 0, tM = 0, tS = 0, tL = 0, ts1 = 0, ts2 = 0, ts3 = 0, tSun = 0, tSat = 0;
 
         // Calculate totals from existing logs
-        Object.values(logs).filter(l => isSameMonth(new Date(l.timestamp), currentViewMonth)).forEach(l => {
-            tOT += (l.otHours || 0); tM += (l.meals || 0); tS += (l.standardHours || 0); tL += (l.leaveDays || 0);
-            ts1 += (l.otSeg1 || 0); ts2 += (l.otSeg2 || 0); ts3 += (l.otSeg3 || 0); tSun += (l.otSunday || 0);
-            const d = new Date(l.timestamp);
+        Object.values(logs).filter(l => isSameMonth(new Date(l.date), currentViewMonth)).forEach(l => {
+            tOT += (l.otHours || 0);
+            tM += (l.meals || 0);
+            ts1 += (l.otSeg1 || 0);
+            ts2 += (l.otSeg2 || 0);
+            ts3 += (l.otSeg3 || 0);
+            tSun += (l.otSunday || 0);
+            tL += (l.leaveDays || 0);
+
+            // Use stored standardHours if available, otherwise fallback to 0
+            tS += (l.standardHours || 0);
+
+            const d = new Date(l.date);
             if (d.getDay() === 6) tSat++;
         });
 
@@ -534,8 +563,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     lvH = `<span style="display:block; font-size:14px; font-weight:600; color:#f59e0b;">${translations[currentLang].leave_days}: ${l.leaveDays}</span>`;
                     if (l.otHours > 0) wkH = `<span class="log-ot">+${l.otHours}h OT</span>`;
                 } else {
-                    lvH = `<span class="log-ot">+${l.otHours}h</span>`;
-                    wkH = `<span class="log-time">${l.inTime ? translations[currentLang].vào + ': ' + l.inTime + ' | ' : ''}${translations[currentLang].ve_luc}: ${l.outTime || translations[currentLang].unknown}</span>`;
+                    const otH = l.otHours || 0;
+                    lvH = `<span class="log-ot">${otH > 0 ? '+' + otH + 'h' : '0h'}</span>`;
+                    const stdH = l.standardHours ? `<span style="font-size:11px;color:var(--primary-color);margin-right:8px;font-weight:600;">Std: ${l.standardHours}h</span>` : '';
+                    wkH = `${stdH}<span class="log-time">${l.inTime ? translations[currentLang].vào + ': ' + l.inTime + ' | ' : ''}${translations[currentLang].ve_luc}: ${l.outTime || translations[currentLang].unknown}</span>`;
                 }
 
                 contentHtml = `<div class="log-details">${lvH}${l.otSunday ? `<span style="font-size:10px;color:var(--accent-color)">${translations[currentLang].sunday}</span>` : ''}${l.meals ? `<span style="font-size:11px;color:var(--text-secondary);margin-right:8px;">${l.meals} ${translations[currentLang].phieu_an}</span>` : ''}${wkH}${locH}</div>
