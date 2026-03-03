@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // DOM Elements
     const datePicker = document.getElementById('date-picker');
     const outDateInput = document.getElementById('out-date');
-    const outTimeInput = document.getElementById('out-time');
     const calculatedOtDisplay = document.getElementById('calculated-ot');
+    const calculatedStdDisplay = document.getElementById('calculated-std');
     const otSeg1Display = document.getElementById('ot-seg-1');
     const otSeg2Display = document.getElementById('ot-seg-2');
     const otSeg3Display = document.getElementById('ot-seg-3');
@@ -30,13 +30,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const holidayConfirmBtn = document.getElementById('confirm-holiday-btn');
     const holidayInput = document.getElementById('holiday-days-input');
 
+    // 24h Time Select Elements
+    const outTimeHourSel = document.getElementById('out-time-hour');
+    const outTimeMinSel = document.getElementById('out-time-min');
+
+    // Virtual outTimeInput to keep existing code working
+    const outTimeInput = {
+        get value() {
+            const h = outTimeHourSel.value;
+            const m = outTimeMinSel.value;
+            if (h === '' || m === '') return '';
+            return h + ':' + m;
+        },
+        set value(v) {
+            if (!v) {
+                outTimeHourSel.value = '';
+                outTimeMinSel.value = '';
+                return;
+            }
+            const parts = v.split(':');
+            outTimeHourSel.value = parts[0];
+            outTimeMinSel.value = parts[1];
+        }
+    };
+
     // Settings Elements
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const closeSettingsBtn = document.getElementById('close-settings');
     const saveSettingsBtn = document.getElementById('save-settings-btn');
-    const settingStartStandardTimeInput = document.getElementById('setting-start-standard-time');
-    const settingStandardTimeInput = document.getElementById('setting-standard-time');
+
+    // Settings time selects
+    const settingStartHourSel = document.getElementById('setting-start-hour');
+    const settingStartMinSel = document.getElementById('setting-start-min');
+    const settingEndHourSel = document.getElementById('setting-end-hour');
+    const settingEndMinSel = document.getElementById('setting-end-min');
+
+    // Virtual settings time inputs
+    const settingStartStandardTimeInput = {
+        get value() {
+            const h = settingStartHourSel.value;
+            const m = settingStartMinSel.value;
+            if (h === '' || m === '') return '08:00';
+            return h + ':' + m;
+        },
+        set value(v) {
+            if (!v) return;
+            const parts = v.split(':');
+            settingStartHourSel.value = parts[0];
+            settingStartMinSel.value = parts[1];
+        }
+    };
+    const settingStandardTimeInput = {
+        get value() {
+            const h = settingEndHourSel.value;
+            const m = settingEndMinSel.value;
+            if (h === '' || m === '') return '17:00';
+            return h + ':' + m;
+        },
+        set value(v) {
+            if (!v) return;
+            const parts = v.split(':');
+            settingEndHourSel.value = parts[0];
+            settingEndMinSel.value = parts[1];
+        }
+    };
+
     const toast = document.getElementById('toast');
 
     // Login Elements
@@ -129,6 +188,48 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('ot_logs', JSON.stringify(logs));
         }
 
+        // Data migration: Fix old logs that incorrectly saved standardHours as 0 
+        // when checked out before 17:00 due to a previous bug.
+        let logsUpdated = false;
+        const [stdSh, stdSm] = settings.startStandardTime.split(':').map(Number);
+        const [stdEh, stdEm] = settings.standardTime.split(':').map(Number);
+        const standardStartHour = stdSh + stdSm / 60;
+        const standardEndHour = stdEh + stdEm / 60;
+
+        Object.keys(logs).forEach(k => {
+            const l = logs[k];
+            // If they worked (have outTime), didn't take leave, not Sunday, but standardHours is 0 -> it's likely the bug.
+            if (l && l.outTime && l.outDate && l.standardHours === 0 && (!l.leaveDays) && (!l.holidayDays)) {
+                const dateObj = new Date(l.date);
+                if (dateObj.getDay() !== 0) { // Not sunday
+                    const [ih, im] = (l.inTime || settings.startStandardTime).split(':').map(Number);
+                    const [oh, om] = l.outTime.split(':').map(Number);
+                    const endDT = new Date(l.outDate); endDT.setHours(oh, om, 0, 0);
+
+                    let arrivalForStd = ih + im / 60;
+                    if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) arrivalForStd = standardStartHour;
+                    const checkout = (endDT.getDate() !== dateObj.getDate()) ? 24 : oh + om / 60;
+
+                    let stdM = 0;
+                    const p1 = Math.max(standardStartHour, arrivalForStd), p1e = Math.min(12, checkout);
+                    if (p1e > p1) stdM += (p1e - p1) * 60;
+                    const p2 = Math.max(13, arrivalForStd), p2e = Math.min(standardEndHour, checkout);
+                    if (p2e > p2) stdM += (p2e - p2) * 60;
+
+                    const computedStd = parseFloat((stdM / 60).toFixed(2));
+                    if (computedStd > 0) {
+                        l.standardHours = computedStd;
+                        logsUpdated = true;
+                    }
+                }
+            }
+        });
+
+        if (logsUpdated) {
+            localStorage.setItem('ot_logs', JSON.stringify(logs));
+        }
+
+        populateTimeSelects();
         datePicker.valueAsDate = selectedDate;
         outDateInput.valueAsDate = selectedDate;
         updateUIText();
@@ -173,8 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         outDateInput.addEventListener('change', calculateOT);
-        outTimeInput.addEventListener('change', calculateOT);
-        outTimeInput.addEventListener('input', calculateOT);
+        outTimeHourSel.addEventListener('change', calculateOT);
+        outTimeMinSel.addEventListener('change', calculateOT);
 
         checkinNowBtn?.addEventListener('click', handleCheckinNow);
         checkoutNowBtn?.addEventListener('click', handleCheckoutNow);
@@ -383,6 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const outTime = outTimeInput.value, outDateVal = outDateInput.value;
         if (!outTime || !outDateVal) {
             calculatedOtDisplay.textContent = '--';
+            if (calculatedStdDisplay) calculatedStdDisplay.textContent = '--';
             if (mealTicketDisplay) mealTicketDisplay.textContent = '0';
             const stdH = (Math.max(leaveDaysVal, holidayDaysVal)) * 8;
             return { total: 0, s1: 0, s2: 0, s3: 0, meals: 0, standardHours: stdH, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal };
@@ -391,26 +493,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const dateKey = formatDateKey(selectedDate);
         const log = logs[dateKey];
         const inTime = (log && log.inTime) ? log.inTime : (settings.startStandardTime || '08:00');
-        const [ih, im] = inTime.split(':').map(Number);
+        let [ih, im] = inTime.split(':').map(Number);
         const startDT = new Date(selectedDate); startDT.setHours(ih, im, 0, 0);
         const endDT = new Date(outDateVal);
-        const [oh, om] = outTime.split(':').map(Number); endDT.setHours(oh, om, 0, 0);
+        let [oh, om] = outTime.split(':').map(Number); endDT.setHours(oh, om, 0, 0);
 
         const [stdSh, stdSm] = settings.startStandardTime.split(':').map(Number);
         const [stdEh, stdEm] = settings.standardTime.split(':').map(Number);
         const standardStartHour = stdSh + stdSm / 60;
         const standardEndHour = stdEh + stdEm / 60;
 
+        let stdM = 0;
+        if (leaveDaysVal < 1 && holidayDaysVal < 1) {
+            let arrivalForStd = ih + im / 60;
+            if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) arrivalForStd = standardStartHour;
+
+            let checkOutHour = oh + om / 60;
+            if (endDT.getTime() > startDT.getTime() && endDT.getDate() !== startDT.getDate()) {
+                checkOutHour += 24; // Cross-midnight properly
+            }
+
+            // Standard time calculation (e.g. 8:00 to 12:00 and 13:00 to 17:00)
+            const p1 = Math.max(standardStartHour, arrivalForStd);
+            const p1e = Math.min(12, checkOutHour);
+            if (p1e > p1) stdM += (p1e - p1) * 60;
+
+            const p2 = Math.max(13, arrivalForStd);
+            const p2e = Math.min(standardEndHour, checkOutHour);
+            if (p2e > p2) stdM += (p2e - p2) * 60;
+
+            if (leaveDaysVal === 0.5 || holidayDaysVal === 0.5) stdM = Math.min(stdM, 240);
+        } else if (leaveDaysVal > 0 || holidayDaysVal > 0) {
+            // Count leave/holiday hours as standard hours
+            stdM = (Math.max(leaveDaysVal, holidayDaysVal)) * 8 * 60;
+        }
+
+        const calculatedStdHoursNum = parseFloat((stdM / 60).toFixed(2));
+        if (calculatedStdDisplay) calculatedStdDisplay.textContent = calculatedStdHoursNum + 'h';
+
         let meals = 0;
         const cp20 = new Date(selectedDate); cp20.setHours(20, 0, 0, 0);
-        const cp22 = new Date(selectedDate); cp22.setHours(22, 0, 0, 0);
-        const cp24 = new Date(selectedDate); cp24.setDate(cp24.getDate() + 1); cp24.setHours(0, 0, 0, 0);
         const isSaturday = selectedDate.getDay() === 6;
         const isSunday = selectedDate.getDay() === 0;
 
-        if (endDT >= cp20) meals++;
-        if (endDT >= cp22) meals++;
-        if (endDT >= cp24) meals++;
+        if (endDT >= cp20) meals = 1;
         if (mealTicketDisplay) mealTicketDisplay.textContent = meals;
 
         if (isSunday) {
@@ -419,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
 
             calculatedOtDisplay.textContent = (durationMins / 60).toFixed(1) + 'h';
-            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), holidayOt: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday };
+            return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), holidayOt: 0, meals, standardHours: calculatedStdHoursNum, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday };
         }
 
         // Holiday with OT (Treat like Sunday)
@@ -433,14 +559,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 sunday: 0,
                 holidayOt: parseFloat((durationMins / 60).toFixed(2)),
                 meals,
-                standardHours: 8,
+                standardHours: calculatedStdHoursNum,
                 leaveDays: 0,
                 holidayDays: holidayDaysVal,
                 isSaturday: isSaturday
             };
         }
 
-        if (endDT <= startDT) return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: 0, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday, holidayOt: 0 };
+        if (endDT <= startDT) {
+            calculatedOtDisplay.textContent = '0.0h';
+            return { total: 0, s1: 0, s2: 0, s3: 0, meals, standardHours: calculatedStdHoursNum, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday, holidayOt: 0 };
+        }
 
         const b1 = new Date(selectedDate); b1.setHours(22, 0, 0, 0);
         const b2 = new Date(selectedDate); b2.setDate(b2.getDate() + 1); b2.setHours(0, 0, 0, 0);
@@ -459,28 +588,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalMin = s1 + s2 + s3;
         calculatedOtDisplay.textContent = (totalMin / 60).toFixed(1) + 'h';
 
-        let stdM = 0;
-        if (leaveDaysVal < 1 && holidayDaysVal < 1) {
-            let arrivalForStd = ih + im / 60;
-            if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) arrivalForStd = standardStartHour;
-
-            const checkout = (endDT.getDate() !== startDT.getDate()) ? 24 : oh + om / 60;
-            const p1 = Math.max(standardStartHour, arrivalForStd), p1e = Math.min(12, checkout);
-            if (p1e > p1) stdM += (p1e - p1) * 60;
-            const p2 = Math.max(13, arrivalForStd), p2e = Math.min(standardEndHour, checkout);
-            if (p2e > p2) stdM += (p2e - p2) * 60;
-            if (leaveDaysVal === 0.5 || holidayDaysVal === 0.5) stdM = Math.min(stdM, 240);
-        } else if (leaveDaysVal > 0 || holidayDaysVal > 0) {
-            // Count leave/holiday hours as standard hours
-            stdM = (Math.max(leaveDaysVal, holidayDaysVal)) * 8 * 60;
-        }
         return {
             total: parseFloat((totalMin / 60).toFixed(2)),
             s1: parseFloat((s1 / 60).toFixed(2)),
             s2: parseFloat((s2 / 60).toFixed(2)),
             s3: parseFloat((s3 / 60).toFixed(2)),
             meals,
-            standardHours: parseFloat((stdM / 60).toFixed(2)),
+            standardHours: calculatedStdHoursNum,
             leaveDays: leaveDaysVal,
             holidayDays: holidayDaysVal,
             isSaturday: isSaturday,
@@ -599,14 +713,20 @@ document.addEventListener('DOMContentLoaded', () => {
             tS += (l.standardHours || 0);
 
             const d = new Date(l.date);
-            if (d.getDay() === 6) tSat++;
+            if (d.getDay() === 6) {
+                if (l.standardHours !== undefined && l.standardHours !== null) {
+                    tSat += (l.standardHours / 8);
+                } else if (l.outTime && l.inTime) {
+                    tSat += 1; // Fallback
+                }
+            }
         });
 
         totalOtDisplay.textContent = tOT.toFixed(1) + 'h';
         totalMealsDisplay.textContent = tM;
         if (standardTimeDisplay) standardTimeDisplay.textContent = tS.toFixed(1) + 'h';
         const lvSum = document.getElementById('total-leave-summary');
-        if (lvSum) lvSum.textContent = (tL * 8).toFixed(1) + 'h';
+        if (lvSum) lvSum.textContent = parseFloat(tL.toFixed(2)) + (currentLang === 'vi' ? ' ngày' : '일');
         totalOtS1Display.textContent = ts1.toFixed(1) + 'h';
         totalOtS2Display.textContent = ts2.toFixed(1) + 'h';
         totalOtS3Display.textContent = ts3.toFixed(1) + 'h';
@@ -614,9 +734,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const hOtSum = document.getElementById('total-ot-holiday');
         if (hOtSum) hOtSum.textContent = tHOt.toFixed(1) + 'h';
         const satWorkDisplay = document.getElementById('total-sat-work');
-        if (satWorkDisplay) satWorkDisplay.textContent = tSat;
+        if (satWorkDisplay) satWorkDisplay.textContent = parseFloat(tSat.toFixed(2));
         const holidaySum = document.getElementById('total-holiday-summary');
-        if (holidaySum) holidaySum.textContent = tH;
+        if (holidaySum) holidaySum.textContent = parseFloat(tH.toFixed(2));
 
         logsList.innerHTML = '';
         allDays.forEach(dayData => {
@@ -648,12 +768,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     const label = l.holidayDays > 0 ? translations[currentLang].holiday_request : translations[currentLang].leave_days;
                     const val = l.holidayDays > 0 ? l.holidayDays : l.leaveDays;
                     lvH = `<span style="display:block; font-size:14px; font-weight:600; color:${l.holidayDays > 0 ? '#10b981' : '#f59e0b'};">${label}: ${val}</span>`;
-                    const otH = l.otHours || 0;
-                    if (otH > 0) wkH = `<span class="log-ot">+${otH}h ${l.holidayDays > 0 ? 'Holiday OT' : 'OT'}</span>`;
+
+                    // If they also worked (have outTime), show standard hours and times
+                    if (l.outTime && l.standardHours > 0) {
+                        const stdH = `<span style="font-size:11px;color:var(--primary-color);margin-right:8px;font-weight:600;">Std: ${l.standardHours}h</span>`;
+                        wkH = `${stdH}<span class="log-time">${l.inTime ? translations[currentLang].vào + ': ' + l.inTime + ' | ' : ''}${translations[currentLang].ve_luc}: ${l.outTime}</span>`;
+                    } else {
+                        const otH = l.otHours || 0;
+                        if (otH > 0) wkH = `<span class="log-ot">+${otH}h ${l.holidayDays > 0 ? 'Holiday OT' : 'OT'}</span>`;
+                    }
                 } else {
                     const otH = l.otHours || 0;
                     lvH = `<span class="log-ot">${otH > 0 ? '+' + otH + 'h' : '0h'}</span>`;
-                    const stdH = l.standardHours ? `<span style="font-size:11px;color:var(--primary-color);margin-right:8px;font-weight:600;">Std: ${l.standardHours}h</span>` : '';
+                    const stdH = (l.standardHours !== undefined && l.standardHours !== null) ? `<span style="font-size:11px;color:var(--primary-color);margin-right:8px;font-weight:600;">Std: ${l.standardHours}h</span>` : '';
                     wkH = `${stdH}<span class="log-time">${l.inTime ? translations[currentLang].vào + ': ' + l.inTime + ' | ' : ''}${translations[currentLang].ve_luc}: ${l.outTime || translations[currentLang].unknown}</span>`;
                 }
 
@@ -673,17 +800,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSettings() {
-        if (settingStartStandardTimeInput) settingStartStandardTimeInput.value = settings.startStandardTime;
-        if (settingStandardTimeInput) settingStandardTimeInput.value = settings.standardTime;
+        settingStartStandardTimeInput.value = settings.startStandardTime;
+        settingStandardTimeInput.value = settings.standardTime;
     }
 
     function saveSettings() {
-        if (settingStartStandardTimeInput) settings.startStandardTime = settingStartStandardTimeInput.value;
-        if (settingStandardTimeInput) settings.standardTime = settingStandardTimeInput.value;
+        settings.startStandardTime = settingStartStandardTimeInput.value;
+        settings.standardTime = settingStandardTimeInput.value;
         localStorage.setItem('ot_settings', JSON.stringify(settings));
         showToast(translations[currentLang].settings_saved);
         closeModal(settingsModal);
         calculateOT();
+    }
+
+    // Populate all time select dropdowns with 24h values
+    function populateTimeSelects() {
+        const selectors = [
+            [outTimeHourSel, outTimeMinSel, true],
+            [settingStartHourSel, settingStartMinSel, false],
+            [settingEndHourSel, settingEndMinSel, false]
+        ];
+        selectors.forEach(([hourSel, minSel, allowEmpty]) => {
+            hourSel.innerHTML = '';
+            minSel.innerHTML = '';
+            if (allowEmpty) {
+                hourSel.innerHTML += '<option value="">--</option>';
+                minSel.innerHTML += '<option value="">--</option>';
+            }
+            for (let i = 0; i <= 23; i++) {
+                const v = String(i).padStart(2, '0');
+                hourSel.innerHTML += '<option value="' + v + '">' + v + '</option>';
+            }
+            for (let i = 0; i < 60; i++) {
+                const v = String(i).padStart(2, '0');
+                minSel.innerHTML += '<option value="' + v + '">' + v + '</option>';
+            }
+        });
     }
 
     function formatDateKey(date) { return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0'); }

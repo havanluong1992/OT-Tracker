@@ -110,8 +110,12 @@
                         <input type="date" id="out-date" class="full-width-input">
                     </div>
                     <div class="form-group">
-                        <label for="out-time" data-i18n="checkout_time">Giờ tan ca</label>
-                        <input type="time" id="out-time" class="full-width-input">
+                        <label data-i18n="checkout_time">Giờ tan ca</label>
+                        <div class="time-select-wrapper">
+                            <select id="out-time-hour" class="time-select"></select>
+                            <span class="time-colon">:</span>
+                            <select id="out-time-min" class="time-select"></select>
+                        </div>
                     </div>
                 </div>
 
@@ -172,7 +176,9 @@
                 </div>
 
                 <div class="info-row" style="flex-direction: column; align-items: stretch; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between;">
+                    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <span><span data-i18n="std_time">Giờ chuẩn</span>: <strong id="calculated-std"
+                                style="color: var(--primary-color)">--</strong></span>
                         <span><span data-i18n="total_ot">Tổng OT</span>: <strong id="calculated-ot"
                                 class="highlight-text">--</strong></span>
                         <span><span data-i18n="meal_tickets">Phiếu ăn</span>: <strong id="meal-ticket-display"
@@ -216,14 +222,22 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="setting-start-standard-time" data-i18n="std_start_time">Giờ bắt đầu tiêu
+                        <label data-i18n="std_start_time">Giờ bắt đầu tiêu
                             chuẩn</label>
-                        <input type="time" id="setting-start-standard-time" value="08:00">
+                        <div class="time-select-wrapper">
+                            <select id="setting-start-hour" class="time-select"></select>
+                            <span class="time-colon">:</span>
+                            <select id="setting-start-min" class="time-select"></select>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="setting-standard-time" data-i18n="std_checkout_time">Giờ tan ca tiêu chuẩn</label>
-                        <input type="time" id="setting-standard-time" value="17:00">
+                        <label data-i18n="std_checkout_time">Giờ tan ca tiêu chuẩn</label>
+                        <div class="time-select-wrapper">
+                            <select id="setting-end-hour" class="time-select"></select>
+                            <span class="time-colon">:</span>
+                            <select id="setting-end-min" class="time-select"></select>
+                        </div>
                         <p class="hint" data-i18n="std_checkout_hint">Giờ kết thúc làm việc chính thức để tính OT.</p>
                     </div>
 

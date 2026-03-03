@@ -483,9 +483,47 @@ select {
 }
 
 input[type="date"]:focus,
-input[type="time"]:focus {
+input[type="time"]:focus,
+.time-select:focus {
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+}
+
+/* 24h Time Select Wrapper */
+.time-select-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.time-select-wrapper .time-select {
+    flex: 1;
+    text-align: center;
+    padding: 16px 8px;
+    font-size: 18px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    outline: none;
+    transition: var(--transition);
+    color-scheme: dark;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    padding-right: 28px;
+}
+
+.time-colon {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    padding: 0 2px;
 }
 
 /* Location Badge */
