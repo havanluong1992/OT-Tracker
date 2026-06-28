@@ -528,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
             stdM = (Math.max(leaveDaysVal, holidayDaysVal)) * 8 * 60;
         }
 
-        const calculatedStdHoursNum = parseFloat((stdM / 60).toFixed(2));
+        const calculatedStdHoursNum = Math.min(8, parseFloat((stdM / 60).toFixed(2)));
         if (calculatedStdDisplay) calculatedStdDisplay.textContent = calculatedStdHoursNum + 'h';
 
         let meals = 0;
@@ -544,6 +544,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Simple lunch deduction if spanning 12:00-13:00
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
 
+            // Nếu cài đặt giờ về là 17:30 và làm việc qua mốc này, trừ thêm 30 phút nghỉ ăn
+            const checkOutHour = oh + om / 60 + (endDT.getDate() !== startDT.getDate() ? 24 : 0);
+            if (settings.standardTime === '17:30' && checkOutHour >= 17.5) durationMins -= 30;
+
             calculatedOtDisplay.textContent = (durationMins / 60).toFixed(1) + 'h';
             return { total: parseFloat((durationMins / 60).toFixed(2)), s1: 0, s2: 0, s3: 0, sunday: parseFloat((durationMins / 60).toFixed(2)), holidayOt: 0, meals, standardHours: calculatedStdHoursNum, leaveDays: leaveDaysVal, holidayDays: holidayDaysVal, isSaturday: isSaturday };
         }
@@ -552,6 +556,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (holidayDaysVal > 0 && outTime && outDateVal) {
             let durationMins = Math.max(0, (endDT - startDT) / 60000);
             if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
+
+            // Nếu cài đặt giờ về là 17:30 và làm việc qua mốc này, trừ thêm 30 phút nghỉ ăn
+            const checkOutHour = oh + om / 60 + (endDT.getDate() !== startDT.getDate() ? 24 : 0);
+            if (settings.standardTime === '17:30' && checkOutHour >= 17.5) durationMins -= 30;
+
             calculatedOtDisplay.textContent = (durationMins / 60).toFixed(1) + 'h';
             return {
                 total: parseFloat((durationMins / 60).toFixed(2)),
@@ -804,13 +813,144 @@ document.addEventListener('DOMContentLoaded', () => {
         settingStandardTimeInput.value = settings.standardTime;
     }
 
+    function recalculateLog(log) {
+        if (!log.outTime || !log.outDate) return log;
+
+        const recordDate = new Date(log.timestamp || log.date);
+        const inTime = log.inTime || settings.startStandardTime;
+        let [ih, im] = inTime.split(':').map(Number);
+        const startDT = new Date(recordDate); startDT.setHours(ih, im, 0, 0);
+        const endDT = new Date(log.outDate);
+        let [oh, om] = log.outTime.split(':').map(Number); endDT.setHours(oh, om, 0, 0);
+
+        const [stdSh, stdSm] = settings.startStandardTime.split(':').map(Number);
+        const [stdEh, stdEm] = settings.standardTime.split(':').map(Number);
+        const standardStartHour = stdSh + stdSm / 60;
+        const standardEndHour = stdEh + stdEm / 60;
+
+        const leaveDaysVal = log.leaveDays || 0;
+        const holidayDaysVal = log.holidayDays || 0;
+
+        let stdM = 0;
+        if (leaveDaysVal < 1 && holidayDaysVal < 1) {
+            let arrivalForStd = ih + im / 60;
+            if (Math.abs(arrivalForStd - standardStartHour) <= 0.25) arrivalForStd = standardStartHour;
+
+            let checkOutHour = oh + om / 60;
+            if (endDT.getTime() > startDT.getTime() && endDT.getDate() !== startDT.getDate()) {
+                checkOutHour += 24;
+            }
+
+            const p1 = Math.max(standardStartHour, arrivalForStd);
+            const p1e = Math.min(12, checkOutHour);
+            if (p1e > p1) stdM += (p1e - p1) * 60;
+
+            const p2 = Math.max(13, arrivalForStd);
+            const p2e = Math.min(standardEndHour, checkOutHour);
+            if (p2e > p2) stdM += (p2e - p2) * 60;
+
+            if (leaveDaysVal === 0.5 || holidayDaysVal === 0.5) stdM = Math.min(stdM, 240);
+        } else if (leaveDaysVal > 0 || holidayDaysVal > 0) {
+            stdM = (Math.max(leaveDaysVal, holidayDaysVal)) * 8 * 60;
+        }
+
+        const calculatedStdHoursNum = Math.min(8, parseFloat((stdM / 60).toFixed(2)));
+
+        let meals = 0;
+        const cp20 = new Date(recordDate); cp20.setHours(20, 0, 0, 0);
+        const isSaturday = recordDate.getDay() === 6;
+        const isSunday = recordDate.getDay() === 0;
+
+        if (endDT >= cp20) meals = 1;
+
+        if (isSunday) {
+            let durationMins = Math.max(0, (endDT - startDT) / 60000);
+            if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
+
+            const checkOutHour = oh + om / 60 + (endDT.getDate() !== startDT.getDate() ? 24 : 0);
+            if (settings.standardTime === '17:30' && checkOutHour >= 17.5) durationMins -= 30;
+
+            log.otHours = parseFloat((durationMins / 60).toFixed(2));
+            log.otSeg1 = 0; log.otSeg2 = 0; log.otSeg3 = 0;
+            log.otSunday = parseFloat((durationMins / 60).toFixed(2));
+            log.holidayOt = 0;
+            log.meals = meals;
+            log.standardHours = calculatedStdHoursNum;
+            return log;
+        }
+
+        if (holidayDaysVal > 0) {
+            let durationMins = Math.max(0, (endDT - startDT) / 60000);
+            if (ih < 12 && (oh >= 13 || endDT.getDate() > startDT.getDate())) durationMins -= 60;
+
+            const checkOutHour = oh + om / 60 + (endDT.getDate() !== startDT.getDate() ? 24 : 0);
+            if (settings.standardTime === '17:30' && checkOutHour >= 17.5) durationMins -= 30;
+
+            log.otHours = parseFloat((durationMins / 60).toFixed(2));
+            log.otSeg1 = 0; log.otSeg2 = 0; log.otSeg3 = 0;
+            log.otSunday = 0;
+            log.holidayOt = parseFloat((durationMins / 60).toFixed(2));
+            log.meals = meals;
+            log.standardHours = calculatedStdHoursNum;
+            return log;
+        }
+
+        if (endDT <= startDT) {
+            log.otHours = 0;
+            log.otSeg1 = 0; log.otSeg2 = 0; log.otSeg3 = 0;
+            log.otSunday = 0; log.holidayOt = 0;
+            log.meals = meals;
+            log.standardHours = calculatedStdHoursNum;
+            return log;
+        }
+
+        const b1 = new Date(recordDate); b1.setHours(22, 0, 0, 0);
+        const b2 = new Date(recordDate); b2.setDate(b2.getDate() + 1); b2.setHours(0, 0, 0, 0);
+        const getM = (s, e) => (e > s ? (e - s) / 60000 : 0);
+
+        const standardEndDT = new Date(recordDate); standardEndDT.setHours(stdEh, stdEm, 0, 0);
+        const otStartDT = standardEndDT;
+
+        const s1 = getM(new Date(Math.max(startDT, otStartDT)), Math.min(endDT, b1));
+        const s2 = getM(new Date(Math.max(startDT, b1)), Math.min(endDT, b2));
+        const s3 = getM(new Date(Math.max(startDT, b2)), endDT);
+
+        const totalMin = s1 + s2 + s3;
+
+        log.otHours = parseFloat((totalMin / 60).toFixed(2));
+        log.otSeg1 = parseFloat((s1 / 60).toFixed(2));
+        log.otSeg2 = parseFloat((s2 / 60).toFixed(2));
+        log.otSeg3 = parseFloat((s3 / 60).toFixed(2));
+        log.otSunday = 0; log.holidayOt = 0;
+        log.meals = meals;
+        log.standardHours = calculatedStdHoursNum;
+        return log;
+    }
+
     function saveSettings() {
         settings.startStandardTime = settingStartStandardTimeInput.value;
         settings.standardTime = settingStandardTimeInput.value;
         localStorage.setItem('ot_settings', JSON.stringify(settings));
+
+        // Tự động tính toán lại toàn bộ dữ liệu lịch sử theo cấu hình mới
+        let logsUpdated = false;
+        Object.keys(logs).forEach(dateKey => {
+            const oldLog = logs[dateKey];
+            if (oldLog && oldLog.outTime) {
+                logs[dateKey] = recalculateLog(oldLog);
+                logsUpdated = true;
+            }
+        });
+        if (logsUpdated) {
+            localStorage.setItem('ot_logs', JSON.stringify(logs));
+        }
+
         showToast(translations[currentLang].settings_saved);
         closeModal(settingsModal);
-        calculateOT();
+
+        // Cập nhật lại UI hiển thị ngay lập tức không cần tải lại trang
+        loadLogForSelectedDate();
+        renderLogs();
     }
 
     // Populate all time select dropdowns with 24h values
