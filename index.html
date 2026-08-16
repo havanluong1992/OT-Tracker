@@ -32,6 +32,16 @@
                     <button id="settings-btn" aria-label="Cài đặt"><i class="fa-solid fa-gear"></i></button>
                 </div>
             </div>
+            <div class="top-actions-bar">
+                <button id="annual-leave-btn" class="top-action-btn primary-gradient">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span data-i18n="annual_leave">Phép Năm</span>
+                </button>
+                <button id="ot-leave-btn" class="top-action-btn ot-gradient">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span data-i18n="ot_leave_btn">Phép OT</span>
+                </button>
+            </div>
             <div class="month-selector">
                 <button id="prev-month"><i class="fa-solid fa-chevron-left"></i></button>
                 <span id="current-month-display">Tháng 1, 2026</span>
@@ -136,6 +146,13 @@
                             <i class="fa-solid fa-check"></i>
                         </div>
                         <span data-i18n="leave_request">Nghỉ phép</span>
+                    </div>
+
+                    <div class="leave-type-select-wrapper hidden" id="leave-type-wrapper">
+                        <select id="leave-type-select" class="leave-type-select">
+                            <option value="annual" data-i18n="annual_leave_option">Năm</option>
+                            <option value="ot_comp" data-i18n="ot_comp_option">OT</option>
+                        </select>
                     </div>
 
                     <div class="leave-input-area">
@@ -273,6 +290,112 @@
                     </div>
                     <button id="login-submit-btn" class="primary-btn full-width" data-i18n="login_btn">Đăng
                         Nhập</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Annual Leave Modal -->
+        <div id="annual-leave-modal" class="modal hidden">
+            <div class="modal-content glass-panel modal-large">
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-calendar-days"></i> <span data-i18n="annual_leave_title">Quản Lý Phép Năm</span> - <span id="annual-leave-year">2026</span></h3>
+                    <button id="close-annual-leave" class="close-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Quick Stats Cards -->
+                    <div class="leave-summary-grid">
+                        <div class="leave-summary-card card-accrued">
+                            <span class="card-title" data-i18n="accrued_leave">Phép phát sinh</span>
+                            <span class="card-value" id="leave-accrued-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
+                        <div class="leave-summary-card card-used">
+                            <span class="card-title" data-i18n="used_leave">Đã sử dụng</span>
+                            <span class="card-value" id="leave-used-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
+                        <div class="leave-summary-card card-remaining">
+                            <span class="card-title" data-i18n="remaining_leave">Phép còn lại</span>
+                            <span class="card-value" id="leave-remaining-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
+                    </div>
+
+                    <!-- Admin Controls & Hint -->
+                    <div id="annual-leave-admin-bar" class="annual-leave-admin-bar hidden">
+                        <span class="admin-edit-badge"><i class="fa-solid fa-user-gear"></i> <span data-i18n="admin_edit_leave_hint">Chế độ Admin: Cho phép chỉnh sửa trực tiếp số phép đã sử dụng</span></span>
+                        <button id="reset-annual-leave-btn" class="reset-leave-btn"><i class="fa-solid fa-rotate-left"></i> <span data-i18n="reset_leave_data">Khôi phục tính tự động</span></button>
+                    </div>
+
+                    <!-- Monthly Leave Table -->
+                    <div class="leave-table-wrapper">
+                        <table class="leave-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="category">Danh mục</th>
+                                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                                    <th>T7</th><th>T8</th><th>T9</th><th>T10</th><th>T11</th><th>T12</th>
+                                    <th data-i18n="total_summary">TỔNG KẾT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="annual-leave-tbody">
+                                <!-- Dynamic Rows injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- OT Leave Modal -->
+        <div id="ot-leave-modal" class="modal hidden">
+            <div class="modal-content glass-panel modal-large">
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="ot_leave_title">Quản Lý Phép OT</span> - <span id="ot-leave-year">2026</span></h3>
+                    <button id="close-ot-leave" class="close-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Quick Stats Cards -->
+                    <div class="leave-summary-grid">
+                        <div class="leave-summary-card card-ot-accrued">
+                            <span class="card-title" data-i18n="accrued_leave">Phép phát sinh</span>
+                            <span class="card-value" id="ot-leave-accrued-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
+                        <div class="leave-summary-card card-used">
+                            <span class="card-title" data-i18n="used_leave">Đã sử dụng</span>
+                            <span class="card-value" id="ot-leave-used-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
+                        <div class="leave-summary-card card-remaining">
+                            <span class="card-title" data-i18n="remaining_leave">Phép còn lại</span>
+                            <span class="card-value" id="ot-leave-remaining-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
+                    </div>
+
+                    <!-- Admin / Edit Controls & Hint -->
+                    <div id="ot-leave-admin-bar" class="annual-leave-admin-bar hidden">
+                        <span class="admin-edit-badge" style="color: #3b82f6;"><i class="fa-solid fa-user-gear"></i> <span data-i18n="ot_admin_edit_hint">Chế độ Admin: Nhập Phép phát sinh & sửa Phép đã sử dụng</span></span>
+                        <button id="reset-ot-leave-btn" class="reset-leave-btn"><i class="fa-solid fa-rotate-left"></i> <span data-i18n="reset_leave_data">Khôi phục tính tự động</span></button>
+                    </div>
+
+                    <!-- Monthly OT Leave Table -->
+                    <div class="leave-table-wrapper">
+                        <table class="leave-table ot-leave-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="category">Danh mục</th>
+                                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>T6</th>
+                                    <th>T7</th><th>T8</th><th>T9</th><th>T10</th><th>T11</th><th>T12</th>
+                                    <th data-i18n="total_summary">TỔNG KẾT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ot-leave-tbody">
+                                <!-- Dynamic Rows injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

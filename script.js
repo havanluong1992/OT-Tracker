@@ -26,9 +26,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaveToggle = document.getElementById('leave-toggle');
     const leaveConfirmBtn = document.getElementById('confirm-leave-btn');
     const leaveInput = document.getElementById('leave-days-input');
+    const leaveTypeWrapper = document.getElementById('leave-type-wrapper');
+    const leaveTypeSelect = document.getElementById('leave-type-select');
     const holidayToggle = document.getElementById('holiday-toggle');
     const holidayConfirmBtn = document.getElementById('confirm-holiday-btn');
     const holidayInput = document.getElementById('holiday-days-input');
+
+    // Annual Leave Elements
+    const annualLeaveBtn = document.getElementById('annual-leave-btn');
+    const annualLeaveModal = document.getElementById('annual-leave-modal');
+    const closeAnnualLeaveBtn = document.getElementById('close-annual-leave');
+    const annualLeaveTbody = document.getElementById('annual-leave-tbody');
+    const annualLeaveYearSpan = document.getElementById('annual-leave-year');
+    const leaveAccruedVal = document.getElementById('leave-accrued-val');
+    const leaveUsedVal = document.getElementById('leave-used-val');
+    const leaveRemainingVal = document.getElementById('leave-remaining-val');
+    const annualLeaveAdminBar = document.getElementById('annual-leave-admin-bar');
+    const resetAnnualLeaveBtn = document.getElementById('reset-annual-leave-btn');
+
+    // OT Leave Elements
+    const otLeaveBtn = document.getElementById('ot-leave-btn');
+    const otLeaveModal = document.getElementById('ot-leave-modal');
+    const closeOtLeaveBtn = document.getElementById('close-ot-leave');
+    const otLeaveTbody = document.getElementById('ot-leave-tbody');
+    const otLeaveYearSpan = document.getElementById('ot-leave-year');
+    const otLeaveAccruedVal = document.getElementById('ot-leave-accrued-val');
+    const otLeaveUsedVal = document.getElementById('ot-leave-used-val');
+    const otLeaveRemainingVal = document.getElementById('ot-leave-remaining-val');
+    const otLeaveAdminBar = document.getElementById('ot-leave-admin-bar');
+    const resetOtLeaveBtn = document.getElementById('reset-ot-leave-btn');
 
     // 24h Time Select Elements
     const outTimeHourSel = document.getElementById('out-time-hour');
@@ -120,6 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let realtimeInterval = null;
     let cachedLocation = null;
     let isAdmin = false;
+    let manualUsedLeave = JSON.parse(localStorage.getItem('ot_manual_used_leave')) || {};
+    let manualAccruedOtLeave = JSON.parse(localStorage.getItem('ot_manual_accrued_ot_leave')) || {};
+    let manualUsedOtLeave = JSON.parse(localStorage.getItem('ot_manual_used_ot_leave')) || {};
 
     const translations = {
         vi: {
@@ -142,7 +171,18 @@ document.addEventListener('DOMContentLoaded', () => {
             standard_work_hours: "Giờ tiêu chuẩn", checkout_day: "Ngày tan ca", std_start_time: "Giờ bắt đầu tiêu chuẩn",
             ot_17_22: "17h - 22h", ot_22_24: "22h - 24h", saturday_work: "Thứ 7", normal_off: "Nghỉ bình thường",
             id_placeholder: "Nhập ID", pass_placeholder: "Nhập mật khẩu", unknown: "Chưa biết",
-            holiday_request: "Nghỉ lễ", holiday_summary: "Nghỉ lễ", holiday_ot: "Lễ (OT)"
+            holiday_request: "Nghỉ lễ", holiday_summary: "Nghỉ lễ", holiday_ot: "Lễ (OT)",
+            annual_leave: "Phép Năm", annual_leave_title: "Quản Lý Phép Năm", accrued_leave: "Phép phát sinh",
+            used_leave: "Đã sử dụng", remaining_leave: "Phép còn lại", category: "Danh mục", total_summary: "TỔNG KẾT",
+            admin_edit_leave_hint: "Chế độ Admin: Cho phép chỉnh sửa trực tiếp số phép đã sử dụng",
+            reset_leave_data: "Khôi phục tính tự động", reset_leave_confirm: "Khôi phục số ngày phép đã sử dụng về dữ liệu tự động từ nhật ký làm việc?",
+            reset_leave_success: "Đã khôi phục dữ liệu phép năm tự động!",
+            annual_leave_option: "Năm", ot_comp_option: "OT",
+            ot_comp_label: "Nghỉ bù OT", annual_leave_label: "Phép Năm",
+            ot_leave_btn: "Phép OT", ot_leave_title: "Quản Lý Phép OT",
+            ot_admin_edit_hint: "Chế độ Admin: Nhập Phép phát sinh & sửa Phép đã sử dụng",
+            reset_ot_leave_confirm: "Khôi phục dữ liệu phép OT về mặc định tự động?",
+            reset_ot_leave_success: "Đã khôi phục dữ liệu phép OT!"
         },
         ko: {
             total_ot: "총 초과 근무(OT)", meal_tickets: "식권(개)", sunday: "일요일(OT)", work_day: "근무 일자",
@@ -164,7 +204,18 @@ document.addEventListener('DOMContentLoaded', () => {
             standard_work_hours: "정규 근무", checkout_day: "퇴근 일자", std_start_time: "표준 출근 시간",
             ot_17_22: "17시 - 22시", ot_22_24: "22시 - 24시", saturday_work: "토요일", normal_off: "정기 휴무",
             id_placeholder: "아이디를 입력하세요", pass_placeholder: "비밀번호를 입력하세요", unknown: "미정",
-            holiday_request: "공휴일", holiday_summary: "공휴일", holiday_ot: "공휴일 (OT)"
+            holiday_request: "휴가", holiday_summary: "휴가", holiday_ot: "휴일 (OT)",
+            annual_leave: "연차 관리", annual_leave_title: "연차 관리", accrued_leave: "발생 연차",
+            used_leave: "사용 연차", remaining_leave: "잔여 연차", category: "항목", total_summary: "합계",
+            admin_edit_leave_hint: "관리자 모드: 사용 연차 직접 수정 가능",
+            reset_leave_data: "자동 계산 복원", reset_leave_confirm: "사용 연차를 출퇴근 기록 기반의 자동 계산 데이터로 복원하시겠습니까?",
+            reset_leave_success: "연차 데이터가 복원되었습니다!",
+            annual_leave_option: "연차", ot_comp_option: "OT",
+            ot_comp_label: "OT 대체 휴가", annual_leave_label: "연차",
+            ot_leave_btn: "OT 휴가", ot_leave_title: "OT 휴가 관리",
+            ot_admin_edit_hint: "관리자 모드: 발생 연차 입력 및 사용 연차 수정 가능",
+            reset_ot_leave_confirm: "OT 휴가 데이터를 초기화하시겠습니까?",
+            reset_ot_leave_success: "OT 휴가 데이터가 초기화되었습니다!"
         }
     };
 
@@ -285,11 +336,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 leaveToggle.classList.toggle('active');
                 if (leaveToggle.classList.contains('active')) {
                     if (!leaveInput.value) leaveInput.value = "1.0";
+                    leaveTypeWrapper?.classList.remove('hidden');
                     leaveConfirmBtn.disabled = false;
                     leaveConfirmBtn.style.opacity = "1";
                     leaveConfirmBtn.style.pointerEvents = "auto";
                 } else {
                     leaveInput.value = "";
+                    leaveTypeWrapper?.classList.add('hidden');
                     leaveConfirmBtn.disabled = true;
                     leaveConfirmBtn.style.opacity = "0.5";
                     leaveConfirmBtn.style.pointerEvents = "none";
@@ -306,9 +359,11 @@ document.addEventListener('DOMContentLoaded', () => {
             saveLog(leaveConfirmBtn, 'leave').then(() => {
                 leaveToggle.classList.remove('active');
                 leaveInput.value = "";
+                leaveTypeWrapper?.classList.add('hidden');
                 leaveConfirmBtn.disabled = true;
                 leaveConfirmBtn.style.opacity = "0.5";
                 calculateOT();
+                renderAnnualLeaveModal();
             });
         });
 
@@ -368,6 +423,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     loginBtn.innerHTML = '<i class="fa-solid fa-user-lock"></i>';
                     showToast(translations[currentLang].logged_out);
                     renderLogs();
+                    if (annualLeaveModal && annualLeaveModal.classList.contains('active')) {
+                        renderAnnualLeaveModal();
+                    }
+                    if (otLeaveModal && otLeaveModal.classList.contains('active')) {
+                        renderOtLeaveModal();
+                    }
                 }
             } else openModal(loginModal);
         });
@@ -380,6 +441,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.target === loginModal) closeModal(loginModal);
             });
         }
+
+        // Annual Leave Listeners
+        annualLeaveBtn?.addEventListener('click', () => {
+            renderAnnualLeaveModal();
+            openModal(annualLeaveModal);
+        });
+        closeAnnualLeaveBtn?.addEventListener('click', () => closeModal(annualLeaveModal));
+        if (annualLeaveModal) {
+            annualLeaveModal.addEventListener('click', (e) => {
+                if (e.target === annualLeaveModal) closeModal(annualLeaveModal);
+            });
+        }
+        resetAnnualLeaveBtn?.addEventListener('click', () => {
+            const year = currentViewMonth.getFullYear();
+            const lang = translations[currentLang] || translations.vi;
+            if (confirm(lang.reset_leave_confirm || "Khôi phục dữ liệu phép năm tự động?")) {
+                if (manualUsedLeave[year]) {
+                    delete manualUsedLeave[year];
+                    localStorage.setItem('ot_manual_used_leave', JSON.stringify(manualUsedLeave));
+                }
+                showToast(lang.reset_leave_success || "Đã khôi phục!");
+                renderAnnualLeaveModal();
+            }
+        });
+
+        // OT Leave Listeners
+        otLeaveBtn?.addEventListener('click', () => {
+            renderOtLeaveModal();
+            openModal(otLeaveModal);
+        });
+        closeOtLeaveBtn?.addEventListener('click', () => closeModal(otLeaveModal));
+        if (otLeaveModal) {
+            otLeaveModal.addEventListener('click', (e) => {
+                if (e.target === otLeaveModal) closeModal(otLeaveModal);
+            });
+        }
+        resetOtLeaveBtn?.addEventListener('click', () => {
+            const year = currentViewMonth.getFullYear();
+            const lang = translations[currentLang] || translations.vi;
+            if (confirm(lang.reset_ot_leave_confirm || "Khôi phục dữ liệu phép OT?")) {
+                if (manualAccruedOtLeave[year]) delete manualAccruedOtLeave[year];
+                if (manualUsedOtLeave[year]) delete manualUsedOtLeave[year];
+                localStorage.setItem('ot_manual_accrued_ot_leave', JSON.stringify(manualAccruedOtLeave));
+                localStorage.setItem('ot_manual_used_ot_leave', JSON.stringify(manualUsedOtLeave));
+                showToast(lang.reset_ot_leave_success || "Đã khôi phục!");
+                renderOtLeaveModal();
+            }
+        });
     }
 
     function handleLogin() {
@@ -391,6 +500,12 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(translations[currentLang].login_success);
             loginIdInput.value = ''; loginPassInput.value = '';
             renderLogs();
+            if (annualLeaveModal && annualLeaveModal.classList.contains('active')) {
+                renderAnnualLeaveModal();
+            }
+            if (otLeaveModal && otLeaveModal.classList.contains('active')) {
+                renderOtLeaveModal();
+            }
         } else showToast(translations[currentLang].login_error, 'error');
     }
 
@@ -421,12 +536,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (log.leaveDays > 0) {
                 leaveToggle.classList.add('active');
                 leaveInput.value = log.leaveDays;
+                leaveTypeWrapper?.classList.remove('hidden');
+                if (leaveTypeSelect) leaveTypeSelect.value = log.leaveType || 'annual';
                 leaveConfirmBtn.disabled = false;
                 leaveConfirmBtn.style.opacity = "1";
                 leaveConfirmBtn.style.pointerEvents = "auto";
             } else {
                 leaveToggle.classList.remove('active');
                 leaveInput.value = "";
+                leaveTypeWrapper?.classList.add('hidden');
                 leaveConfirmBtn.disabled = true;
                 leaveConfirmBtn.style.opacity = "0.5";
                 leaveConfirmBtn.style.pointerEvents = "none";
@@ -453,6 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             checkinNowBtn.style.pointerEvents = "auto";
             leaveToggle.classList.remove('active');
             leaveInput.value = "";
+            leaveTypeWrapper?.classList.add('hidden');
             leaveConfirmBtn.disabled = true;
             leaveConfirmBtn.style.opacity = "0.5";
             leaveConfirmBtn.style.pointerEvents = "none";
@@ -657,13 +776,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const inTimeValue = checkinTimeForLog || (existing && existing.inTime) || settings.startStandardTime;
 
+        const selectedLeaveType = (isLeave && leaveTypeSelect) ? leaveTypeSelect.value : ((existing && existing.leaveType) || 'annual');
+
         logs[dk] = {
             date: dk, timestamp: selectedDate.getTime(),
             inTime: inTimeValue,
             outTime: outTimeInput.value, outDate: outDateInput.value,
             otHours: otData.total, otSeg1: otData.s1, otSeg2: otData.s2, otSeg3: otData.s3,
             otSunday: otData.sunday || 0, holidayOt: otData.holidayOt || 0, meals: otData.meals, standardHours: otData.standardHours,
-            leaveDays: otData.leaveDays, holidayDays: otData.holidayDays, location: loc || (existing && existing.location)
+            leaveDays: otData.leaveDays, leaveType: selectedLeaveType, holidayDays: otData.holidayDays, location: loc || (existing && existing.location)
         };
         localStorage.setItem('ot_logs', JSON.stringify(logs));
         renderLogs();
@@ -774,9 +895,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let lvH = '', wkH = '';
                 if (l.leaveDays > 0 || l.holidayDays > 0) {
-                    const label = l.holidayDays > 0 ? translations[currentLang].holiday_request : translations[currentLang].leave_days;
+                    let label = translations[currentLang].leave_days;
+                    let badgeColor = '#f59e0b';
+                    if (l.holidayDays > 0) {
+                        label = translations[currentLang].holiday_request;
+                        badgeColor = '#10b981';
+                    } else if (l.leaveType === 'ot_comp') {
+                        label = translations[currentLang].ot_comp_label || "Nghỉ bù OT";
+                        badgeColor = '#3b82f6';
+                    } else {
+                        label = translations[currentLang].annual_leave_label || translations[currentLang].leave_days;
+                        badgeColor = '#f59e0b';
+                    }
                     const val = l.holidayDays > 0 ? l.holidayDays : l.leaveDays;
-                    lvH = `<span style="display:block; font-size:14px; font-weight:600; color:${l.holidayDays > 0 ? '#10b981' : '#f59e0b'};">${label}: ${val}</span>`;
+                    lvH = `<span style="display:block; font-size:14px; font-weight:600; color:${badgeColor};">${label}: ${val}</span>`;
 
                     // If they also worked (have outTime), show standard hours and times
                     if (l.outTime && l.standardHours > 0) {
@@ -1001,5 +1133,325 @@ document.addEventListener('DOMContentLoaded', () => {
         lnk.download = `OT_${currentViewMonth.getFullYear()}_${currentViewMonth.getMonth() + 1}.csv`;
         lnk.click();
         showToast(translations[currentLang].csv_downloaded);
+    }
+
+    function renderAnnualLeaveModal() {
+        const year = currentViewMonth.getFullYear();
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonthIndex = today.getMonth(); // 0..11
+
+        if (annualLeaveYearSpan) annualLeaveYearSpan.textContent = year;
+
+        // Toggle Admin bar in annual leave modal
+        if (annualLeaveAdminBar) {
+            if (isAdmin) annualLeaveAdminBar.classList.remove('hidden');
+            else annualLeaveAdminBar.classList.add('hidden');
+        }
+
+        // Initialize 12 months array (index 0..11)
+        const accruedList = new Array(12).fill(0);
+        const usedList = new Array(12).fill(0);
+        const remainingList = new Array(12).fill(0);
+
+        // 1. Accrued Leave Calculation
+        for (let m = 0; m < 12; m++) {
+            if (year < currentYear) {
+                accruedList[m] = 1.0; // Past years get full 1 day per month
+            } else if (year === currentYear) {
+                if (m <= currentMonthIndex) {
+                    accruedList[m] = 1.0; // Months up to current month get 1 day
+                } else {
+                    accruedList[m] = 0; // Future months not accrued yet
+                }
+            } else {
+                accruedList[m] = 0; // Future years not accrued yet
+            }
+        }
+
+        // 2. Used Leave Calculation from ot_logs (only Annual Leave type, excluding OT Comp leave)
+        Object.values(logs).forEach(log => {
+            if (log.leaveDays && log.leaveDays > 0) {
+                if (!log.leaveType || log.leaveType === 'annual') {
+                    const logDate = new Date(log.date);
+                    if (!isNaN(logDate.getTime()) && logDate.getFullYear() === year) {
+                        const m = logDate.getMonth();
+                        if (m >= 0 && m < 12) {
+                            usedList[m] += parseFloat(log.leaveDays) || 0;
+                        }
+                    }
+                }
+            }
+        });
+
+        // 2b. Apply Manual Overrides for Used Leave if set
+        if (manualUsedLeave[year]) {
+            for (let m = 0; m < 12; m++) {
+                if (manualUsedLeave[year][m] !== undefined && manualUsedLeave[year][m] !== null) {
+                    usedList[m] = parseFloat(manualUsedLeave[year][m]) || 0;
+                }
+            }
+        }
+
+        // Helper function to update cumulative balances, summary cards and row totals
+        function updateLeaveTotals() {
+            let runningBalance = 0;
+            let totalAccrued = 0;
+            let totalUsed = 0;
+
+            for (let m = 0; m < 12; m++) {
+                totalAccrued += accruedList[m];
+                totalUsed += usedList[m];
+                runningBalance += accruedList[m] - usedList[m];
+                remainingList[m] = runningBalance;
+            }
+
+            const totalRemaining = totalAccrued - totalUsed;
+
+            // Update Stat Cards
+            if (leaveAccruedVal) leaveAccruedVal.textContent = totalAccrued.toFixed(1);
+            if (leaveUsedVal) leaveUsedVal.textContent = totalUsed.toFixed(1);
+            if (leaveRemainingVal) leaveRemainingVal.textContent = totalRemaining.toFixed(1);
+
+            // Update Row Totals & Remaining Row in DOM
+            if (annualLeaveTbody) {
+                const rowUsed = annualLeaveTbody.querySelector('.row-used');
+                const rowRemaining = annualLeaveTbody.querySelector('.row-remaining');
+                
+                if (rowUsed) {
+                    const lastTd = rowUsed.querySelector('td:last-child');
+                    if (lastTd) lastTd.textContent = totalUsed.toFixed(1);
+                }
+
+                if (rowRemaining) {
+                    const cells = rowRemaining.querySelectorAll('td');
+                    for (let m = 0; m < 12; m++) {
+                        if (cells[m + 1]) { // index + 1 because first cell is label
+                            if (accruedList[m] > 0 || (year < currentYear)) {
+                                cells[m + 1].textContent = remainingList[m].toFixed(1);
+                            } else {
+                                cells[m + 1].textContent = '-';
+                            }
+                        }
+                    }
+                    const lastTd = rowRemaining.querySelector('td:last-child');
+                    if (lastTd) lastTd.textContent = totalRemaining.toFixed(1);
+                }
+            }
+        }
+
+        // 3. Populate Table Rows HTML
+        if (annualLeaveTbody) {
+            const lang = translations[currentLang] || translations.vi;
+            const accruedLabel = lang.accrued_leave || "Phép phát sinh";
+            const usedLabel = lang.used_leave || "Đã sử dụng";
+            const remainingLabel = lang.remaining_leave || "Phép còn lại";
+
+            let trAccrued = `<tr class="row-accrued"><td>${accruedLabel}</td>`;
+            let trUsed = `<tr class="row-used"><td>${usedLabel}</td>`;
+            let trRemaining = `<tr class="row-remaining"><td>${remainingLabel}</td>`;
+
+            for (let m = 0; m < 12; m++) {
+                trAccrued += `<td>${accruedList[m].toFixed(1)}</td>`;
+                
+                if (isAdmin) {
+                    const val = usedList[m];
+                    trUsed += `<td class="cell-editable"><input type="number" class="used-leave-input" data-month="${m}" value="${val}" step="0.5" min="0"></td>`;
+                } else {
+                    trUsed += `<td>${usedList[m] > 0 ? usedList[m].toFixed(1) : '0'}</td>`;
+                }
+                
+                trRemaining += `<td>-</td>`;
+            }
+
+            trAccrued += `<td>0</td></tr>`;
+            trUsed += `<td>0</td></tr>`;
+            trRemaining += `<td>0</td></tr>`;
+
+            annualLeaveTbody.innerHTML = trAccrued + trUsed + trRemaining;
+
+            // Perform initial calculation and update remaining row & stat cards
+            updateLeaveTotals();
+
+            // Bind input change listeners if Admin
+            if (isAdmin) {
+                const inputs = annualLeaveTbody.querySelectorAll('.used-leave-input');
+                inputs.forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        const m = parseInt(e.target.getAttribute('data-month'));
+                        let val = parseFloat(e.target.value);
+                        if (isNaN(val) || val < 0) val = 0;
+
+                        if (!manualUsedLeave[year]) manualUsedLeave[year] = {};
+                        manualUsedLeave[year][m] = val;
+                        usedList[m] = val;
+                        localStorage.setItem('ot_manual_used_leave', JSON.stringify(manualUsedLeave));
+
+                        updateLeaveTotals();
+                    });
+                });
+            }
+        }
+    }
+
+    function renderOtLeaveModal() {
+        const year = currentViewMonth.getFullYear();
+        if (otLeaveYearSpan) otLeaveYearSpan.textContent = year;
+
+        if (otLeaveAdminBar) {
+            if (isAdmin) otLeaveAdminBar.classList.remove('hidden');
+            else otLeaveAdminBar.classList.add('hidden');
+        }
+
+        const accruedList = new Array(12).fill(0);
+        const usedList = new Array(12).fill(0);
+        const remainingList = new Array(12).fill(0);
+
+        // 1. Accrued OT leave from manualAccruedOtLeave[year]
+        if (manualAccruedOtLeave[year]) {
+            for (let m = 0; m < 12; m++) {
+                if (manualAccruedOtLeave[year][m] !== undefined && manualAccruedOtLeave[year][m] !== null) {
+                    accruedList[m] = parseFloat(manualAccruedOtLeave[year][m]) || 0;
+                }
+            }
+        }
+
+        // 2. Used OT leave from logs where leaveType === 'ot_comp'
+        Object.values(logs).forEach(log => {
+            if (log.leaveDays && log.leaveDays > 0 && log.leaveType === 'ot_comp') {
+                const logDate = new Date(log.date);
+                if (!isNaN(logDate.getTime()) && logDate.getFullYear() === year) {
+                    const m = logDate.getMonth();
+                    if (m >= 0 && m < 12) {
+                        usedList[m] += parseFloat(log.leaveDays) || 0;
+                    }
+                }
+            }
+        });
+
+        // 2b. Apply manual override for used OT leave if set
+        if (manualUsedOtLeave[year]) {
+            for (let m = 0; m < 12; m++) {
+                if (manualUsedOtLeave[year][m] !== undefined && manualUsedOtLeave[year][m] !== null) {
+                    usedList[m] = parseFloat(manualUsedOtLeave[year][m]) || 0;
+                }
+            }
+        }
+
+        // Helper function to update cumulative balances, summary cards and row totals
+        function updateOtLeaveTotals() {
+            let runningBalance = 0;
+            let totalAccrued = 0;
+            let totalUsed = 0;
+
+            for (let m = 0; m < 12; m++) {
+                totalAccrued += accruedList[m];
+                totalUsed += usedList[m];
+                runningBalance += accruedList[m] - usedList[m];
+                remainingList[m] = runningBalance;
+            }
+
+            const totalRemaining = totalAccrued - totalUsed;
+
+            if (otLeaveAccruedVal) otLeaveAccruedVal.textContent = totalAccrued.toFixed(1);
+            if (otLeaveUsedVal) otLeaveUsedVal.textContent = totalUsed.toFixed(1);
+            if (otLeaveRemainingVal) otLeaveRemainingVal.textContent = totalRemaining.toFixed(1);
+
+            if (otLeaveTbody) {
+                const rowAccrued = otLeaveTbody.querySelector('.row-accrued');
+                const rowUsed = otLeaveTbody.querySelector('.row-used');
+                const rowRemaining = otLeaveTbody.querySelector('.row-remaining');
+
+                if (rowAccrued) {
+                    const lastTd = rowAccrued.querySelector('td:last-child');
+                    if (lastTd) lastTd.textContent = totalAccrued.toFixed(1);
+                }
+
+                if (rowUsed) {
+                    const lastTd = rowUsed.querySelector('td:last-child');
+                    if (lastTd) lastTd.textContent = totalUsed.toFixed(1);
+                }
+
+                if (rowRemaining) {
+                    const cells = rowRemaining.querySelectorAll('td');
+                    for (let m = 0; m < 12; m++) {
+                        if (cells[m + 1]) {
+                            cells[m + 1].textContent = remainingList[m].toFixed(1);
+                        }
+                    }
+                    const lastTd = rowRemaining.querySelector('td:last-child');
+                    if (lastTd) lastTd.textContent = totalRemaining.toFixed(1);
+                }
+            }
+        }
+
+        if (otLeaveTbody) {
+            const lang = translations[currentLang] || translations.vi;
+            const accruedLabel = lang.accrued_leave || "Phép phát sinh";
+            const usedLabel = lang.used_leave || "Đã sử dụng";
+            const remainingLabel = lang.remaining_leave || "Phép còn lại";
+
+            let trAccrued = `<tr class="row-accrued"><td>${accruedLabel}</td>`;
+            let trUsed = `<tr class="row-used"><td>${usedLabel}</td>`;
+            let trRemaining = `<tr class="row-remaining"><td>${remainingLabel}</td>`;
+
+            for (let m = 0; m < 12; m++) {
+                // Accrued row is editable by user/Admin
+                trAccrued += `<td class="cell-editable"><input type="number" class="ot-accrued-input" data-month="${m}" value="${accruedList[m]}" step="0.5" min="0"></td>`;
+
+                // Used row is editable when isAdmin
+                if (isAdmin) {
+                    trUsed += `<td class="cell-editable"><input type="number" class="ot-used-input" data-month="${m}" value="${usedList[m]}" step="0.5" min="0"></td>`;
+                } else {
+                    trUsed += `<td>${usedList[m] > 0 ? usedList[m].toFixed(1) : '0'}</td>`;
+                }
+
+                trRemaining += `<td>0</td>`;
+            }
+
+            trAccrued += `<td>0</td></tr>`;
+            trUsed += `<td>0</td></tr>`;
+            trRemaining += `<td>0</td></tr>`;
+
+            otLeaveTbody.innerHTML = trAccrued + trUsed + trRemaining;
+
+            updateOtLeaveTotals();
+
+            // Bind input change listeners for accrued inputs
+            const accruedInputs = otLeaveTbody.querySelectorAll('.ot-accrued-input');
+            accruedInputs.forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const m = parseInt(e.target.getAttribute('data-month'));
+                    let val = parseFloat(e.target.value);
+                    if (isNaN(val) || val < 0) val = 0;
+
+                    if (!manualAccruedOtLeave[year]) manualAccruedOtLeave[year] = {};
+                    manualAccruedOtLeave[year][m] = val;
+                    accruedList[m] = val;
+                    localStorage.setItem('ot_manual_accrued_ot_leave', JSON.stringify(manualAccruedOtLeave));
+
+                    updateOtLeaveTotals();
+                });
+            });
+
+            // Bind input change listeners for used inputs when Admin
+            if (isAdmin) {
+                const usedInputs = otLeaveTbody.querySelectorAll('.ot-used-input');
+                usedInputs.forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        const m = parseInt(e.target.getAttribute('data-month'));
+                        let val = parseFloat(e.target.value);
+                        if (isNaN(val) || val < 0) val = 0;
+
+                        if (!manualUsedOtLeave[year]) manualUsedOtLeave[year] = {};
+                        manualUsedOtLeave[year][m] = val;
+                        usedList[m] = val;
+                        localStorage.setItem('ot_manual_used_ot_leave', JSON.stringify(manualUsedOtLeave));
+
+                        updateOtLeaveTotals();
+                    });
+                });
+            }
+        }
     }
 });
