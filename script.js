@@ -38,6 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeAnnualLeaveBtn = document.getElementById('close-annual-leave');
     const annualLeaveTbody = document.getElementById('annual-leave-tbody');
     const annualLeaveYearSpan = document.getElementById('annual-leave-year');
+    const leavePrevYearTitle = document.getElementById('leave-prev-year-title');
+    const leavePrevYearVal = document.getElementById('leave-prev-year-val');
     const leaveAccruedVal = document.getElementById('leave-accrued-val');
     const leaveUsedVal = document.getElementById('leave-used-val');
     const leaveRemainingVal = document.getElementById('leave-remaining-val');
@@ -50,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeOtLeaveBtn = document.getElementById('close-ot-leave');
     const otLeaveTbody = document.getElementById('ot-leave-tbody');
     const otLeaveYearSpan = document.getElementById('ot-leave-year');
+    const otLeavePrevYearTitle = document.getElementById('ot-leave-prev-year-title');
+    const otLeavePrevYearVal = document.getElementById('ot-leave-prev-year-val');
     const otLeaveAccruedVal = document.getElementById('ot-leave-accrued-val');
     const otLeaveUsedVal = document.getElementById('ot-leave-used-val');
     const otLeaveRemainingVal = document.getElementById('ot-leave-remaining-val');
@@ -1135,6 +1139,48 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(translations[currentLang].csv_downloaded);
     }
 
+    function getYearNetRemainingLeave(targetYear) {
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonthIndex = today.getMonth();
+
+        let accrued = 0;
+        if (targetYear < currentYear) accrued = 12.0;
+        else if (targetYear === currentYear) accrued = Math.min(12, currentMonthIndex + 1) * 1.0;
+        else accrued = 0;
+
+        let used = 0;
+        if (manualUsedLeave[targetYear]) {
+            for (let m = 0; m < 12; m++) {
+                if (manualUsedLeave[targetYear][m] !== undefined && manualUsedLeave[targetYear][m] !== null) {
+                    used += parseFloat(manualUsedLeave[targetYear][m]) || 0;
+                } else {
+                    Object.values(logs).forEach(log => {
+                        if (log.leaveDays && log.leaveDays > 0 && (!log.leaveType || log.leaveType === 'annual')) {
+                            const logDate = new Date(log.date);
+                            if (!isNaN(logDate.getTime()) && logDate.getFullYear() === targetYear && logDate.getMonth() === m) {
+                                used += parseFloat(log.leaveDays) || 0;
+                            }
+                        }
+                    });
+                }
+            }
+        } else {
+            Object.values(logs).forEach(log => {
+                if (log.leaveDays && log.leaveDays > 0) {
+                    if (!log.leaveType || log.leaveType === 'annual') {
+                        const logDate = new Date(log.date);
+                        if (!isNaN(logDate.getTime()) && logDate.getFullYear() === targetYear) {
+                            used += parseFloat(log.leaveDays) || 0;
+                        }
+                    }
+                }
+            });
+        }
+
+        return Math.max(0, accrued - used);
+    }
+
     function renderAnnualLeaveModal() {
         const year = currentViewMonth.getFullYear();
         const today = new Date();
@@ -1193,34 +1239,75 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // 2c. Calculate Carryover from Previous Year
+        const prevYear = year - 1;
+        const prevYearRemaining = getYearNetRemainingLeave(prevYear);
+
+        // Update Previous Year Card
+        if (leavePrevYearTitle) {
+            leavePrevYearTitle.textContent = (currentLang === 'vi' ? 'Phép dư ' : '') + prevYear + (currentLang === 'ko' ? '년 잔여' : '');
+        }
+        if (leavePrevYearVal) {
+            leavePrevYearVal.textContent = prevYearRemaining.toFixed(1);
+        }
+
         // Helper function to update cumulative balances, summary cards and row totals
         function updateLeaveTotals() {
+            let totalAccruedCurrentYear = 0;
+            let totalUsedCurrentYear = 0;
             let runningBalance = 0;
-            let totalAccrued = 0;
-            let totalUsed = 0;
 
             for (let m = 0; m < 12; m++) {
-                totalAccrued += accruedList[m];
-                totalUsed += usedList[m];
+                totalAccruedCurrentYear += accruedList[m];
+                totalUsedCurrentYear += usedList[m];
                 runningBalance += accruedList[m] - usedList[m];
                 remainingList[m] = runningBalance;
             }
 
-            const totalRemaining = totalAccrued - totalUsed;
+            const totalRemainingDisplay = totalAccruedCurrentYear - totalUsedCurrentYear;
 
-            // Update Stat Cards
-            if (leaveAccruedVal) leaveAccruedVal.textContent = totalAccrued.toFixed(1);
-            if (leaveUsedVal) leaveUsedVal.textContent = totalUsed.toFixed(1);
-            if (leaveRemainingVal) leaveRemainingVal.textContent = totalRemaining.toFixed(1);
+            // Update Current Year Stat Cards
+            if (leaveAccruedVal) leaveAccruedVal.textContent = totalAccruedCurrentYear.toFixed(1);
+            if (leaveUsedVal) leaveUsedVal.textContent = totalUsedCurrentYear.toFixed(1);
+            if (leaveRemainingVal) leaveRemainingVal.textContent = totalRemainingDisplay.toFixed(1);
+
+            // Update Carryover Info Badge
+            const carryoverInfoDiv = document.getElementById('leave-carryover-info');
+            if (carryoverInfoDiv) {
+                if (prevYearRemaining > 0) {
+                    const usedInJanFeb = (usedList[0] || 0) + (usedList[1] || 0);
+                    const carryoverUsedInJanFeb = Math.min(prevYearRemaining, usedInJanFeb);
+                    const carryoverExpired = Math.max(0, prevYearRemaining - usedInJanFeb);
+
+                    carryoverInfoDiv.classList.remove('hidden');
+                    let expiredText = '';
+                    if (carryoverExpired > 0) {
+                        expiredText = ` <span style="color:#ef4444;font-weight:600;">(Đã hết hạn ngày 28/02/${year}: ${carryoverExpired.toFixed(1)} ngày)</span>`;
+                    } else if (carryoverUsedInJanFeb > 0) {
+                        expiredText = ` <span style="color:#10b981;font-weight:600;">(Đã dùng trong T1&T2: ${carryoverUsedInJanFeb.toFixed(1)} ngày)</span>`;
+                    } else {
+                        expiredText = ` <span style="color:#f59e0b;font-weight:600;">(Hạn dùng hết 28/02/${year})</span>`;
+                    }
+                    carryoverInfoDiv.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Phép dư năm ${prevYear}: <strong>${prevYearRemaining.toFixed(1)} ngày</strong>${expiredText}`;
+                } else {
+                    carryoverInfoDiv.classList.add('hidden');
+                }
+            }
 
             // Update Row Totals & Remaining Row in DOM
             if (annualLeaveTbody) {
+                const rowAccrued = annualLeaveTbody.querySelector('.row-accrued');
                 const rowUsed = annualLeaveTbody.querySelector('.row-used');
                 const rowRemaining = annualLeaveTbody.querySelector('.row-remaining');
-                
+
+                if (rowAccrued) {
+                    const lastTd = rowAccrued.querySelector('td:last-child');
+                    if (lastTd) lastTd.textContent = totalAccruedCurrentYear.toFixed(1);
+                }
+
                 if (rowUsed) {
                     const lastTd = rowUsed.querySelector('td:last-child');
-                    if (lastTd) lastTd.textContent = totalUsed.toFixed(1);
+                    if (lastTd) lastTd.textContent = totalUsedCurrentYear.toFixed(1);
                 }
 
                 if (rowRemaining) {
@@ -1235,7 +1322,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                     const lastTd = rowRemaining.querySelector('td:last-child');
-                    if (lastTd) lastTd.textContent = totalRemaining.toFixed(1);
+                    if (lastTd) lastTd.textContent = totalRemainingDisplay.toFixed(1);
                 }
             }
         }
@@ -1294,6 +1381,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function getOtLeaveNetCarryover(targetYear) {
+        let carryover = 0;
+        const yearsSet = new Set();
+
+        Object.values(logs).forEach(l => {
+            if (l.leaveType === 'ot_comp') {
+                const yr = new Date(l.date).getFullYear();
+                if (!isNaN(yr) && yr < targetYear) yearsSet.add(yr);
+            }
+        });
+        Object.keys(manualAccruedOtLeave).forEach(y => {
+            const yr = parseInt(y);
+            if (!isNaN(yr) && yr < targetYear) yearsSet.add(yr);
+        });
+        Object.keys(manualUsedOtLeave).forEach(y => {
+            const yr = parseInt(y);
+            if (!isNaN(yr) && yr < targetYear) yearsSet.add(yr);
+        });
+
+        const sortedYears = Array.from(yearsSet).sort((a, b) => a - b);
+        sortedYears.forEach(y => {
+            let yrAccrued = 0;
+            if (manualAccruedOtLeave[y]) {
+                for (let m = 0; m < 12; m++) {
+                    yrAccrued += parseFloat(manualAccruedOtLeave[y][m]) || 0;
+                }
+            }
+
+            let yrUsed = 0;
+            if (manualUsedOtLeave[y]) {
+                for (let m = 0; m < 12; m++) {
+                    if (manualUsedOtLeave[y][m] !== undefined && manualUsedOtLeave[y][m] !== null) {
+                        yrUsed += parseFloat(manualUsedOtLeave[y][m]) || 0;
+                    } else {
+                        Object.values(logs).forEach(log => {
+                            if (log.leaveDays && log.leaveDays > 0 && log.leaveType === 'ot_comp') {
+                                const d = new Date(log.date);
+                                if (d.getFullYear() === y && d.getMonth() === m) {
+                                    yrUsed += parseFloat(log.leaveDays) || 0;
+                                }
+                            }
+                        });
+                    }
+                }
+            } else {
+                Object.values(logs).forEach(log => {
+                    if (log.leaveDays && log.leaveDays > 0 && log.leaveType === 'ot_comp') {
+                        const d = new Date(log.date);
+                        if (d.getFullYear() === y) {
+                            yrUsed += parseFloat(log.leaveDays) || 0;
+                        }
+                    }
+                });
+            }
+
+            carryover += (yrAccrued - yrUsed);
+        });
+
+        return Math.max(0, carryover);
+    }
+
     function renderOtLeaveModal() {
         const year = currentViewMonth.getFullYear();
         if (otLeaveYearSpan) otLeaveYearSpan.textContent = year;
@@ -1338,9 +1486,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // 2c. Calculate Net Carryover from Previous Years
+        const prevYear = year - 1;
+        const prevOtCarryover = getOtLeaveNetCarryover(year);
+
+        if (otLeavePrevYearTitle) {
+            otLeavePrevYearTitle.textContent = (currentLang === 'vi' ? 'OT dư ' : '') + prevYear + (currentLang === 'ko' ? '년 잔여' : '');
+        }
+        if (otLeavePrevYearVal) {
+            otLeavePrevYearVal.textContent = prevOtCarryover.toFixed(1);
+        }
+
         // Helper function to update cumulative balances, summary cards and row totals
         function updateOtLeaveTotals() {
-            let runningBalance = 0;
+            let runningBalance = prevOtCarryover;
             let totalAccrued = 0;
             let totalUsed = 0;
 
@@ -1351,7 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 remainingList[m] = runningBalance;
             }
 
-            const totalRemaining = totalAccrued - totalUsed;
+            const totalRemaining = prevOtCarryover + totalAccrued - totalUsed;
 
             if (otLeaveAccruedVal) otLeaveAccruedVal.textContent = totalAccrued.toFixed(1);
             if (otLeaveUsedVal) otLeaveUsedVal.textContent = totalUsed.toFixed(1);
@@ -1373,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (rowRemaining) {
-                    const cells = rowRemaining.querySelectorAll('td');
+                    const cells = otLeaveTbody.querySelectorAll('.row-remaining td');
                     for (let m = 0; m < 12; m++) {
                         if (cells[m + 1]) {
                             cells[m + 1].textContent = remainingList[m].toFixed(1);

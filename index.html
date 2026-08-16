@@ -304,6 +304,11 @@
                 <div class="modal-body">
                     <!-- Quick Stats Cards -->
                     <div class="leave-summary-grid">
+                        <div class="leave-summary-card card-prev-year">
+                            <span class="card-title" id="leave-prev-year-title">Phép dư 2025</span>
+                            <span class="card-value" id="leave-prev-year-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
                         <div class="leave-summary-card card-accrued">
                             <span class="card-title" data-i18n="accrued_leave">Phép phát sinh</span>
                             <span class="card-value" id="leave-accrued-val">0</span>
@@ -320,6 +325,9 @@
                             <span class="card-unit" data-i18n="days">ngày</span>
                         </div>
                     </div>
+
+                    <!-- Carryover Info Badge -->
+                    <div id="leave-carryover-info" class="leave-carryover-info hidden"></div>
 
                     <!-- Admin Controls & Hint -->
                     <div id="annual-leave-admin-bar" class="annual-leave-admin-bar hidden">
@@ -357,6 +365,11 @@
                 <div class="modal-body">
                     <!-- Quick Stats Cards -->
                     <div class="leave-summary-grid">
+                        <div class="leave-summary-card card-prev-year">
+                            <span class="card-title" id="ot-leave-prev-year-title">OT dư 2025</span>
+                            <span class="card-value" id="ot-leave-prev-year-val">0</span>
+                            <span class="card-unit" data-i18n="days">ngày</span>
+                        </div>
                         <div class="leave-summary-card card-ot-accrued">
                             <span class="card-title" data-i18n="accrued_leave">Phép phát sinh</span>
                             <span class="card-value" id="ot-leave-accrued-val">0</span>
